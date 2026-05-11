@@ -1,0 +1,551 @@
+import 'dart:io';
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/api/openai_client.dart';
+import '../../core/models/generation_request.dart';
+import '../../core/models/image_record.dart';
+import '../../core/providers/app_providers.dart';
+import '../../core/providers/settings_provider.dart';
+import '../../core/services/attachment_picker_service.dart';
+import '../../shared/theme.dart';
+import 'api_profile_selector.dart';
+import 'attachment_preview_strip.dart';
+import 'quality_selector.dart';
+import 'quantity_selector.dart';
+import 'size_selector.dart';
+
+class BottomInputBar extends ConsumerStatefulWidget {
+  const BottomInputBar({super.key, required this.onSubmit});
+
+  final Future<void> Function(GenerationRequest request) onSubmit;
+
+  @override
+  ConsumerState<BottomInputBar> createState() => BottomInputBarState();
+}
+
+class BottomInputBarState extends ConsumerState<BottomInputBar> {
+  final TextEditingController _promptController = TextEditingController();
+  final FocusNode _promptFocusNode = FocusNode();
+
+  SizePreset _sizePreset = SizePreset.square1k;
+  ImageQuality _quality = ImageQuality.auto;
+  int _count = 1;
+  int _customWidth = 1024;
+  int _customHeight = 1024;
+  bool _submitting = false;
+  List<PickedAttachment> _attachments = const [];
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    _promptFocusNode.dispose();
+    super.dispose();
+  }
+
+  void prefillPrompt(String prompt) {
+    if (!mounted) {
+      return;
+    }
+    _promptController
+      ..text = prompt
+      ..selection = TextSelection.collapsed(offset: prompt.length);
+    _promptFocusNode.requestFocus();
+    setState(() {});
+  }
+
+  Future<void> prefillForEdit(ImageRecord record) async {
+    prefillPrompt(record.prompt);
+    final sourcePath = record.resultImagePath ?? record.sourceImagePath;
+    if (sourcePath == null) {
+      return;
+    }
+
+    final attachment = await PickedAttachment.fromExistingPath(sourcePath);
+    if (!mounted || attachment == null) {
+      return;
+    }
+
+    setState(() {
+      _attachments = [attachment];
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final activeProfile = settings.activeProfile;
+    final hasApiKey = activeProfile.apiKey.trim().isNotEmpty;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final isDesktop = _isDesktopPlatform;
+    final theme = Theme.of(context);
+    final modeLabel = _attachments.isEmpty ? '文生图' : '改图模式';
+    final modeHint = _attachments.isEmpty
+        ? '底部直接输入提示词即可开始生成'
+        : '已附加参考图，发送后会自动切换为图生图';
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomInset),
+      child: SafeArea(
+        top: false,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Material(
+              color: Colors.transparent,
+              child: DecoratedBox(
+                decoration: AppDecorations.glass(radius: 28),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _ContextPill(
+                            icon: _attachments.isEmpty
+                                ? Icons.auto_awesome_rounded
+                                : Icons.collections_rounded,
+                            label: modeLabel,
+                          ),
+                          const SizedBox(width: 8),
+                          _ContextPill(
+                            icon: Icons.hub_rounded,
+                            label: activeProfile.name,
+                          ),
+                          const Spacer(),
+                          if (isDesktop)
+                            Text(
+                              'Enter 发送 · Ctrl+Enter 换行',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                      if (isDesktop) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline_rounded,
+                              size: 14,
+                              color: AppThemeTokens.textSecondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                modeHint,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppThemeTokens.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (_attachments.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        AttachmentPreviewStrip(
+                          attachments: _attachments,
+                          onRemove: (index) {
+                            setState(() {
+                              _attachments = [
+                                for (int i = 0; i < _attachments.length; i++)
+                                  if (i != index) _attachments[i],
+                              ];
+                            });
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: AppThemeTokens.surfaceSoft,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: IconButton(
+                              tooltip: '添加图片',
+                              onPressed: _submitting ? null : _pickAttachments,
+                              icon: const Icon(Icons.attach_file_rounded),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Focus(
+                              onKeyEvent: _handleKeyEvent,
+                              child: TextField(
+                                key: const Key('prompt-input'),
+                                controller: _promptController,
+                                focusNode: _promptFocusNode,
+                                minLines: 1,
+                                maxLines: 4,
+                                textInputAction: TextInputAction.newline,
+                                keyboardType: TextInputType.multiline,
+                                decoration: InputDecoration(
+                                  hintText: _attachments.isEmpty
+                                      ? '描述你想生成的画面'
+                                      : '描述你想如何修改这些图片',
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _SendButton(
+                            key: const Key('submit-generation-button'),
+                            enabled: hasApiKey,
+                            onTap: _submit,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            SizeSelector(
+                              selectedPreset: _sizePreset,
+                              customWidth: _customWidth,
+                              customHeight: _customHeight,
+                              onPresetSelected: (preset) async {
+                                if (preset == SizePreset.custom) {
+                                  final customSize =
+                                      await _showCustomSizeDialog();
+                                  if (customSize == null) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _sizePreset = SizePreset.custom;
+                                    _customWidth = customSize.$1;
+                                    _customHeight = customSize.$2;
+                                  });
+                                  return;
+                                }
+
+                                setState(() {
+                                  _sizePreset = preset;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            QualitySelector(
+                              selectedQuality: _quality,
+                              onSelected: (quality) {
+                                setState(() {
+                                  _quality = quality;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            QuantitySelector(
+                              count: _count,
+                              onSelected: (count) {
+                                setState(() {
+                                  _count = count;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ApiProfileSelector(
+                              profiles: settings.profiles,
+                              activeProfileId: settings.activeProfileId,
+                              onSelected: (id) {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .setActiveProfile(id);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!hasApiKey) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          '当前配置缺少 API Key，发送按钮已禁用。',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode _, KeyEvent event) {
+    if (!_isDesktopPlatform) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.enter) {
+      return KeyEventResult.ignored;
+    }
+
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed || keyboard.isMetaPressed) {
+      _insertNewLine();
+      return KeyEventResult.handled;
+    }
+
+    _submit();
+    return KeyEventResult.handled;
+  }
+
+  bool get _isDesktopPlatform {
+    return !kIsWeb &&
+        (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+  }
+
+  void _insertNewLine() {
+    final value = _promptController.value;
+    final selection = value.selection;
+    final start = selection.start.clamp(0, value.text.length);
+    final end = selection.end.clamp(0, value.text.length);
+    final updatedText = value.text.replaceRange(start, end, '\n');
+
+    _promptController.value = TextEditingValue(
+      text: updatedText,
+      selection: TextSelection.collapsed(offset: start + 1),
+    );
+  }
+
+  Future<void> _pickAttachments() async {
+    final picked = await ref.read(attachmentPickerServiceProvider).pickImages();
+    if (!mounted || picked.isEmpty) {
+      return;
+    }
+
+    final valid = <PickedAttachment>[];
+    final oversized = <PickedAttachment>[];
+
+    for (final item in picked) {
+      if (item.sizeBytes > AttachmentPickerService.maxFileSizeBytes) {
+        oversized.add(item);
+      } else {
+        valid.add(item);
+      }
+    }
+
+    if (oversized.isNotEmpty) {
+      _showMessage('已忽略 ${oversized.length} 张超过 25MB 的图片。');
+    }
+
+    if (valid.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _attachments = [..._attachments, ...valid];
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) {
+      return;
+    }
+
+    final settings = ref.read(settingsProvider);
+    final activeProfile = settings.activeProfile;
+    final prompt = _promptController.text.trim();
+
+    if (activeProfile.apiKey.trim().isEmpty) {
+      _showMessage('请先在设置中填写 API Key。');
+      return;
+    }
+
+    if (prompt.isEmpty) {
+      _showMessage('提示词不能为空。');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      await widget.onSubmit(
+        GenerationRequest(
+          prompt: prompt,
+          imagePaths: _attachments.map((item) => item.path).toList(),
+          sizePreset: _sizePreset,
+          customWidth: _customWidth,
+          customHeight: _customHeight,
+          quality: _quality,
+          count: _count,
+          apiProfileId: settings.activeProfileId,
+        ),
+      );
+
+      _promptController.clear();
+      setState(() {
+        _attachments = const [];
+      });
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
+  }
+
+  Future<(int, int)?> _showCustomSizeDialog() async {
+    final widthController = TextEditingController(
+      text: _customWidth.toString(),
+    );
+    final heightController = TextEditingController(
+      text: _customHeight.toString(),
+    );
+
+    final result = await showDialog<(int, int)>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('自定义尺寸'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: widthController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '宽度'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: heightController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '高度'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final width = int.tryParse(widthController.text.trim());
+                final height = int.tryParse(heightController.text.trim());
+                if (width == null ||
+                    height == null ||
+                    width <= 0 ||
+                    height <= 0) {
+                  return;
+                }
+                Navigator.of(context).pop((width, height));
+              },
+              child: const Text('确定'),
+            ),
+          ],
+        );
+      },
+    );
+
+    widthController.dispose();
+    heightController.dispose();
+    return result;
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ContextPill extends StatelessWidget {
+  const _ContextPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppThemeTokens.surfaceSoft,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppThemeTokens.primaryStrong),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.primaryStrong,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SendButton extends StatelessWidget {
+  const _SendButton({super.key, required this.enabled, required this.onTap});
+
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = enabled
+        ? const [AppThemeTokens.primary, AppThemeTokens.primaryStrong]
+        : const [Color(0xFFB9C7D4), Color(0xFFB9C7D4)];
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: enabled ? 1 : 0.7,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: colors),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: SizedBox(
+          width: 50,
+          height: 50,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: enabled ? onTap : null,
+              borderRadius: BorderRadius.circular(18),
+              child: const Center(
+                child: Icon(Icons.arrow_upward_rounded, color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
