@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gpt_image_flutter/core/api/openai_client.dart';
+import 'package:mint_image/core/api/openai_client.dart';
 
 void main() {
   test('extractErrorMessage includes HTTP status code when available', () {

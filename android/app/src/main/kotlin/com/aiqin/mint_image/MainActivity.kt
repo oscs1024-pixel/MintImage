@@ -1,4 +1,4 @@
-package com.aiqin.gpt_image_flutter
+package com.aiqin.mint_image
 
 import io.flutter.embedding.android.FlutterActivity
 

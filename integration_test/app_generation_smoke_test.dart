@@ -7,10 +7,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:gpt_image_flutter/main.dart' as app;
-import 'package:gpt_image_flutter/core/models/image_record.dart';
-import 'package:gpt_image_flutter/core/providers/image_list_provider.dart';
-import 'package:gpt_image_flutter/core/providers/settings_provider.dart';
+import 'package:mint_image/main.dart' as app;
+import 'package:mint_image/core/models/image_record.dart';
+import 'package:mint_image/core/providers/image_list_provider.dart';
+import 'package:mint_image/core/providers/settings_provider.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gpt_image_flutter/core/models/image_record.dart';
+import 'package:mint_image/core/models/image_record.dart';
 
 void main() {
   test('markCancelled clears transient generation state', () {

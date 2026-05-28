@@ -228,7 +228,7 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
       final savedPath = await ref
           .read(imageSaveServiceProvider)
           .saveImage(
-            suggestedFileName: 'gpt-image-${widget.record.id}.$extension',
+            suggestedFileName: 'mint-image-${widget.record.id}.$extension',
             localPath: widget.record.resultImagePath,
             imageUrl: widget.record.resultImageUrl,
           );

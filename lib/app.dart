@@ -9,7 +9,7 @@ class GptImageApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'GPT Image',
+      title: 'MintImage',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       home: const HomePage(),

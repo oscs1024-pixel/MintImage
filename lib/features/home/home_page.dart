@@ -36,7 +36,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'GPT Image',
+              'MintImage',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             Text(

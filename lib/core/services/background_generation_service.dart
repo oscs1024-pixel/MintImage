@@ -9,7 +9,7 @@ class BackgroundGenerationService {
   static final BackgroundGenerationService instance =
       BackgroundGenerationService._();
 
-  static const String _channelId = 'gpt_image_background_service';
+  static const String _channelId = 'mint_image_background_service';
   static const bool _foregroundKeepAliveEnabled = false;
 
   bool _configured = false;
@@ -38,7 +38,7 @@ class BackgroundGenerationService {
           autoStartOnBoot: false,
           isForegroundMode: true,
           notificationChannelId: _channelId,
-          initialNotificationTitle: 'GPT Image',
+          initialNotificationTitle: 'MintImage',
           initialNotificationContent: '生成任务运行中',
           foregroundServiceNotificationId: 112233,
           foregroundServiceTypes: const [AndroidForegroundType.dataSync],
@@ -101,7 +101,7 @@ void backgroundServiceOnStart(ServiceInstance service) {
 
   if (service is AndroidServiceInstance) {
     service.setForegroundNotificationInfo(
-      title: 'GPT Image',
+      title: 'MintImage',
       content: '生成任务运行中',
     );
   }

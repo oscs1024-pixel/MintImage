@@ -47,7 +47,7 @@ class RequestLogService extends ChangeNotifier {
   RequestLogService._(this._file);
 
   static const int _maxEntries = 1000;
-  static const String _fileName = 'gpt_image_flutter_request_logs.jsonl';
+  static const String _fileName = 'mint_image_request_logs.jsonl';
 
   final File _file;
   final List<RequestLogEntry> _entries = <RequestLogEntry>[];

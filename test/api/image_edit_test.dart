@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gpt_image_flutter/core/api/image_edit_api.dart';
-import 'package:gpt_image_flutter/core/models/generation_request.dart';
-import 'package:gpt_image_flutter/core/models/settings_model.dart';
+import 'package:mint_image/core/api/image_edit_api.dart';
+import 'package:mint_image/core/models/generation_request.dart';
+import 'package:mint_image/core/models/settings_model.dart';
 import 'package:path/path.dart' as p;
 
 void main() {

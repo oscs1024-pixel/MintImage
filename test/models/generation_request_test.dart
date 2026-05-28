@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gpt_image_flutter/core/models/generation_request.dart';
+import 'package:mint_image/core/models/generation_request.dart';
 
 void main() {
   group('GenerationRequest', () {
