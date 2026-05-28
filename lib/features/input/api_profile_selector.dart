@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/settings_model.dart';
-import 'selector_button.dart';
+import '../../shared/theme.dart';
 
 class ApiProfileSelector extends StatelessWidget {
   const ApiProfileSelector({
@@ -22,15 +22,71 @@ class ApiProfileSelector extends StatelessWidget {
       orElse: () => profiles.first,
     );
 
-    return SelectorButton<String>(
-      icon: Icons.hub_rounded,
-      label: activeProfile.name,
-      values: profiles.map((profile) => profile.id).toList(),
-      selectedValue: activeProfileId,
-      onSelected: onSelected,
-      itemLabelBuilder: (value) {
-        final profile = profiles.firstWhere((item) => item.id == value);
-        return profile.name;
+    return GestureDetector(
+      onTap: () => _showSheet(context),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppThemeTokens.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppThemeTokens.border.withValues(alpha: 0.7),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hub_rounded, size: 13, color: AppThemeTokens.primaryStrong),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                activeProfile.name,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppThemeTokens.primaryStrong,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: profiles.map((profile) {
+              final active = profile.id == activeProfileId;
+              return ListTile(
+                leading: Icon(
+                  active ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  color: active ? AppThemeTokens.primary : Colors.grey,
+                ),
+                title: Text(profile.name),
+                subtitle: Text(
+                  profile.normalizedBaseUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onSelected(profile.id);
+                },
+              );
+            }).toList(),
+          ),
+        );
       },
     );
   }
