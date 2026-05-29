@@ -54,6 +54,35 @@ class ImageRecordsTable extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class FavoriteFoldersTable extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get title => text()();
+
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class FavoriteFolderItemsTable extends Table {
+  TextColumn get folderId => text().references(
+    FavoriteFoldersTable,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  TextColumn get recordId =>
+      text().references(ImageRecordsTable, #id, onDelete: KeyAction.cascade)();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {folderId, recordId};
+}
+
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final directory = await getApplicationSupportDirectory();
@@ -83,12 +112,14 @@ Future<void> _copyLegacyDatabaseIfNeeded(Directory directory, File file) async {
   }
 }
 
-@DriftDatabase(tables: [ImageRecordsTable])
+@DriftDatabase(
+  tables: [ImageRecordsTable, FavoriteFoldersTable, FavoriteFolderItemsTable],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -120,6 +151,10 @@ class AppDatabase extends _$AppDatabase {
           imageRecordsTable,
           imageRecordsTable.isFavorite,
         );
+      }
+      if (from < 6) {
+        await migrator.createTable(favoriteFoldersTable);
+        await migrator.createTable(favoriteFolderItemsTable);
       }
     },
   );

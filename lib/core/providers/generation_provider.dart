@@ -11,6 +11,7 @@ import '../models/generation_result.dart';
 import '../models/image_record.dart';
 import '../models/settings_model.dart';
 import 'app_providers.dart';
+import 'favorite_folders_provider.dart';
 import 'image_list_provider.dart';
 import 'settings_provider.dart';
 
@@ -50,7 +51,10 @@ class GenerationController extends StateNotifier<GenerationState> {
   final Map<String, CancelToken> _cancelTokens = {};
   final Set<String> _deletedRequestIds = <String>{};
 
-  Future<void> submit(GenerationRequest request) async {
+  Future<void> submit(
+    GenerationRequest request, {
+    String? favoriteFolderId,
+  }) async {
     final settings = _ref.read(settingsProvider);
     final profile = settings.profileById(request.apiProfileId);
     if (profile == null) {
@@ -64,10 +68,19 @@ class GenerationController extends StateNotifier<GenerationState> {
         request: request,
         model: profile.model,
         createdAt: DateTime.now().add(Duration(milliseconds: index)),
+        isFavorite: favoriteFolderId != null,
       ),
     );
 
     await _ref.read(imageListProvider.notifier).addPending(records);
+    if (favoriteFolderId != null) {
+      await _ref
+          .read(favoriteFoldersProvider.notifier)
+          .addRecordsToFolder(
+            folderId: favoriteFolderId,
+            recordIds: records.map((record) => record.id).toList(),
+          );
+    }
     await _ref.read(backgroundGenerationServiceProvider).startIfNeeded();
     state = state.copyWith(
       activeRequestIds: {
@@ -201,7 +214,8 @@ class GenerationController extends StateNotifier<GenerationState> {
         return;
       }
 
-      final updatedRecord = record.copyWith(
+      final currentRecord = _recordById(record.id) ?? record;
+      final updatedRecord = currentRecord.copyWith(
         status: ImageRecordStatus.done,
         resultImagePath: storedImage.localPath,
         resultImageUrl: storedImage.imageUrl,
@@ -221,7 +235,8 @@ class GenerationController extends StateNotifier<GenerationState> {
         return;
       }
 
-      final updatedRecord = record.copyWith(
+      final currentRecord = _recordById(record.id) ?? record;
+      final updatedRecord = currentRecord.copyWith(
         status: ImageRecordStatus.error,
         errorMessage: error.message,
         durationMs: stopwatch.elapsedMilliseconds,
@@ -237,11 +252,12 @@ class GenerationController extends StateNotifier<GenerationState> {
       }
     } on DioException catch (error) {
       stopwatch.stop();
+      final currentRecord = _recordById(record.id) ?? record;
       final updatedRecord = error.type == DioExceptionType.cancel
-          ? record.markCancelled().copyWith(
+          ? currentRecord.markCancelled().copyWith(
               durationMs: stopwatch.elapsedMilliseconds,
             )
-          : record.copyWith(
+          : currentRecord.copyWith(
               status: ImageRecordStatus.error,
               errorMessage: OpenAiClient.extractErrorMessage(error),
               durationMs: stopwatch.elapsedMilliseconds,
@@ -269,7 +285,8 @@ class GenerationController extends StateNotifier<GenerationState> {
         return;
       }
 
-      final updatedRecord = record.copyWith(
+      final currentRecord = _recordById(record.id) ?? record;
+      final updatedRecord = currentRecord.copyWith(
         status: ImageRecordStatus.error,
         errorMessage: error.toString(),
         durationMs: stopwatch.elapsedMilliseconds,

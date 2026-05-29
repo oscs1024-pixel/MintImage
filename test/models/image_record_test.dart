@@ -21,9 +21,26 @@ void main() {
     );
 
     final favorited = record.copyWith(isFavorite: true);
+    final autoFavorited = ImageRecord.pending(
+      id: 'record-0b',
+      request: const GenerationRequest(
+        prompt: 'city',
+        imagePaths: [],
+        sizePreset: SizePreset.square1k,
+        customWidth: 1024,
+        customHeight: 1024,
+        quality: ImageQuality.medium,
+        count: 1,
+        apiProfileId: 'default',
+      ),
+      model: 'gpt-image-2',
+      createdAt: DateTime(2026, 5, 10),
+      isFavorite: true,
+    );
 
     expect(record.isFavorite, isFalse);
     expect(favorited.isFavorite, isTrue);
+    expect(autoFavorited.isFavorite, isTrue);
   });
 
   test('markCancelled clears transient generation state', () {

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/generation_request.dart';
 import '../../core/models/image_record.dart';
+import '../../core/providers/favorite_folders_provider.dart';
 import '../../core/providers/generation_provider.dart';
 import '../../core/providers/image_list_provider.dart';
 import '../../core/providers/settings_provider.dart';
@@ -13,6 +14,7 @@ import '../../core/providers/update_check_provider.dart';
 import '../../core/version/app_version.dart';
 import '../../shared/theme.dart';
 import '../../shared/widgets/empty_state.dart';
+import '../favorites/favorite_folder_sheet.dart';
 import '../image_list/image_list_widget.dart';
 import '../input/bottom_input_bar.dart';
 import '../settings/settings_page.dart';
@@ -31,7 +33,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   final FocusNode _searchFocusNode = FocusNode();
   bool _selectionMode = false;
   Set<String> _selectedRecordIds = const <String>{};
-  bool _favoriteOnly = false;
+  String? _activeFavoriteFolderId;
   bool _searchExpanded = false;
   String _searchQuery = '';
   int _attachmentCount = 0;
@@ -47,7 +49,20 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final updateState = ref.watch(updateCheckProvider);
+    final favoriteFoldersState = ref.watch(favoriteFoldersProvider);
     final hasApiKey = settings.activeProfile.apiKey.trim().isNotEmpty;
+    final activeFavoriteFolderId =
+        _activeFavoriteFolderId != null &&
+            favoriteFoldersState.containsFolder(_activeFavoriteFolderId!)
+        ? _activeFavoriteFolderId
+        : null;
+    final activeFavoriteFolder = activeFavoriteFolderId == null
+        ? null
+        : favoriteFoldersState.folderById(activeFavoriteFolderId);
+    final activeFavoriteRecordIds = activeFavoriteFolderId == null
+        ? null
+        : favoriteFoldersState.recordIdsForFolder(activeFavoriteFolderId);
+    final hasActiveFavoriteFolder = activeFavoriteFolderId != null;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -98,11 +113,15 @@ class _HomePageState extends ConsumerState<HomePage> {
           Padding(
             padding: const EdgeInsets.only(right: 2),
             child: IconButton(
-              tooltip: _favoriteOnly ? '显示全部' : '只看收藏',
-              onPressed: _toggleFavoriteFilter,
-              color: _favoriteOnly ? Colors.orange.shade700 : null,
+              tooltip: hasActiveFavoriteFolder ? '显示全部' : '选择收藏夹',
+              onPressed: hasActiveFavoriteFolder
+                  ? _clearFavoriteFolderFilter
+                  : _openFavoriteFolders,
+              color: hasActiveFavoriteFolder ? Colors.orange.shade700 : null,
               icon: Icon(
-                _favoriteOnly ? Icons.star_rounded : Icons.star_border_rounded,
+                hasActiveFavoriteFolder
+                    ? Icons.star_rounded
+                    : Icons.star_border_rounded,
               ),
             ),
           ),
@@ -228,7 +247,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                             selectedRecordIds: _selectedRecordIds,
                             onToggleSelection: _toggleRecordSelection,
                             onSelectRecord: _selectRecord,
-                            favoriteOnly: _favoriteOnly,
+                            favoriteRecordIds: activeFavoriteRecordIds,
+                            activeFavoriteFolderTitle:
+                                activeFavoriteFolder?.title,
                             searchQuery: _searchQuery,
                           ),
                         ),
@@ -260,7 +281,16 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _submitRequest(GenerationRequest request) async {
-    await ref.read(generationProvider.notifier).submit(request);
+    final favoriteFolderId =
+        _activeFavoriteFolderId != null &&
+            ref
+                .read(favoriteFoldersProvider)
+                .containsFolder(_activeFavoriteFolderId!)
+        ? _activeFavoriteFolderId
+        : null;
+    await ref
+        .read(generationProvider.notifier)
+        .submit(request, favoriteFolderId: favoriteFolderId);
   }
 
   Future<void> _retryRecord(ImageRecord record) async {
@@ -281,7 +311,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _toggleRecordFavorite(ImageRecord record) async {
-    await ref.read(imageListProvider.notifier).toggleFavorite(record.id);
+    await showFavoriteFolderRecordSheet(context, record: record);
   }
 
   Future<void> _appendRecordToAttachments(ImageRecord record) async {
@@ -340,11 +370,23 @@ class _HomePageState extends ConsumerState<HomePage> {
     });
   }
 
-  void _toggleFavoriteFilter() {
+  void _clearFavoriteFolderFilter() {
     setState(() {
       _selectionMode = false;
       _selectedRecordIds = const <String>{};
-      _favoriteOnly = !_favoriteOnly;
+      _activeFavoriteFolderId = null;
+    });
+  }
+
+  Future<void> _openFavoriteFolders() async {
+    _exitSelectionMode();
+    final folderId = await showFavoriteFolderBrowserSheet(context);
+    if (!mounted || folderId == null) {
+      return;
+    }
+
+    setState(() {
+      _activeFavoriteFolderId = folderId;
     });
   }
 

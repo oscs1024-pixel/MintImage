@@ -312,12 +312,10 @@ class ImageCell extends ConsumerWidget {
                 ),
               ListTile(
                 leading: Icon(
-                  record.isFavorite
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
+                  Icons.star_border_rounded,
                   color: record.isFavorite ? Colors.orange.shade700 : null,
                 ),
-                title: Text(record.isFavorite ? '取消收藏' : '收藏'),
+                title: const Text('收藏到...'),
                 onTap: () {
                   Navigator.of(context).pop();
                   onToggleFavorite();

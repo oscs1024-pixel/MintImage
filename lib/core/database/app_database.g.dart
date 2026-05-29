@@ -1111,16 +1111,647 @@ class ImageRecordsTableCompanion
   }
 }
 
+class $FavoriteFoldersTableTable extends FavoriteFoldersTable
+    with TableInfo<$FavoriteFoldersTableTable, FavoriteFoldersTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FavoriteFoldersTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, title, isDefault, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'favorite_folders_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FavoriteFoldersTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FavoriteFoldersTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FavoriteFoldersTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FavoriteFoldersTableTable createAlias(String alias) {
+    return $FavoriteFoldersTableTable(attachedDatabase, alias);
+  }
+}
+
+class FavoriteFoldersTableData extends DataClass
+    implements Insertable<FavoriteFoldersTableData> {
+  final String id;
+  final String title;
+  final bool isDefault;
+  final DateTime createdAt;
+  const FavoriteFoldersTableData({
+    required this.id,
+    required this.title,
+    required this.isDefault,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    map['is_default'] = Variable<bool>(isDefault);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  FavoriteFoldersTableCompanion toCompanion(bool nullToAbsent) {
+    return FavoriteFoldersTableCompanion(
+      id: Value(id),
+      title: Value(title),
+      isDefault: Value(isDefault),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory FavoriteFoldersTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FavoriteFoldersTableData(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  FavoriteFoldersTableData copyWith({
+    String? id,
+    String? title,
+    bool? isDefault,
+    DateTime? createdAt,
+  }) => FavoriteFoldersTableData(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    isDefault: isDefault ?? this.isDefault,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  FavoriteFoldersTableData copyWithCompanion(
+    FavoriteFoldersTableCompanion data,
+  ) {
+    return FavoriteFoldersTableData(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FavoriteFoldersTableData(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, title, isDefault, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FavoriteFoldersTableData &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.isDefault == this.isDefault &&
+          other.createdAt == this.createdAt);
+}
+
+class FavoriteFoldersTableCompanion
+    extends UpdateCompanion<FavoriteFoldersTableData> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<bool> isDefault;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const FavoriteFoldersTableCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FavoriteFoldersTableCompanion.insert({
+    required String id,
+    required String title,
+    this.isDefault = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       createdAt = Value(createdAt);
+  static Insertable<FavoriteFoldersTableData> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<bool>? isDefault,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (isDefault != null) 'is_default': isDefault,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FavoriteFoldersTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<bool>? isDefault,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return FavoriteFoldersTableCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      isDefault: isDefault ?? this.isDefault,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FavoriteFoldersTableCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FavoriteFolderItemsTableTable extends FavoriteFolderItemsTable
+    with
+        TableInfo<
+          $FavoriteFolderItemsTableTable,
+          FavoriteFolderItemsTableData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FavoriteFolderItemsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _folderIdMeta = const VerificationMeta(
+    'folderId',
+  );
+  @override
+  late final GeneratedColumn<String> folderId = GeneratedColumn<String>(
+    'folder_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES favorite_folders_table (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _recordIdMeta = const VerificationMeta(
+    'recordId',
+  );
+  @override
+  late final GeneratedColumn<String> recordId = GeneratedColumn<String>(
+    'record_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES image_records_table (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [folderId, recordId, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'favorite_folder_items_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FavoriteFolderItemsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('folder_id')) {
+      context.handle(
+        _folderIdMeta,
+        folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_folderIdMeta);
+    }
+    if (data.containsKey('record_id')) {
+      context.handle(
+        _recordIdMeta,
+        recordId.isAcceptableOrUnknown(data['record_id']!, _recordIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {folderId, recordId};
+  @override
+  FavoriteFolderItemsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FavoriteFolderItemsTableData(
+      folderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}folder_id'],
+      )!,
+      recordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}record_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FavoriteFolderItemsTableTable createAlias(String alias) {
+    return $FavoriteFolderItemsTableTable(attachedDatabase, alias);
+  }
+}
+
+class FavoriteFolderItemsTableData extends DataClass
+    implements Insertable<FavoriteFolderItemsTableData> {
+  final String folderId;
+  final String recordId;
+  final DateTime createdAt;
+  const FavoriteFolderItemsTableData({
+    required this.folderId,
+    required this.recordId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['folder_id'] = Variable<String>(folderId);
+    map['record_id'] = Variable<String>(recordId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  FavoriteFolderItemsTableCompanion toCompanion(bool nullToAbsent) {
+    return FavoriteFolderItemsTableCompanion(
+      folderId: Value(folderId),
+      recordId: Value(recordId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory FavoriteFolderItemsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FavoriteFolderItemsTableData(
+      folderId: serializer.fromJson<String>(json['folderId']),
+      recordId: serializer.fromJson<String>(json['recordId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'folderId': serializer.toJson<String>(folderId),
+      'recordId': serializer.toJson<String>(recordId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  FavoriteFolderItemsTableData copyWith({
+    String? folderId,
+    String? recordId,
+    DateTime? createdAt,
+  }) => FavoriteFolderItemsTableData(
+    folderId: folderId ?? this.folderId,
+    recordId: recordId ?? this.recordId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  FavoriteFolderItemsTableData copyWithCompanion(
+    FavoriteFolderItemsTableCompanion data,
+  ) {
+    return FavoriteFolderItemsTableData(
+      folderId: data.folderId.present ? data.folderId.value : this.folderId,
+      recordId: data.recordId.present ? data.recordId.value : this.recordId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FavoriteFolderItemsTableData(')
+          ..write('folderId: $folderId, ')
+          ..write('recordId: $recordId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(folderId, recordId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FavoriteFolderItemsTableData &&
+          other.folderId == this.folderId &&
+          other.recordId == this.recordId &&
+          other.createdAt == this.createdAt);
+}
+
+class FavoriteFolderItemsTableCompanion
+    extends UpdateCompanion<FavoriteFolderItemsTableData> {
+  final Value<String> folderId;
+  final Value<String> recordId;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const FavoriteFolderItemsTableCompanion({
+    this.folderId = const Value.absent(),
+    this.recordId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FavoriteFolderItemsTableCompanion.insert({
+    required String folderId,
+    required String recordId,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : folderId = Value(folderId),
+       recordId = Value(recordId),
+       createdAt = Value(createdAt);
+  static Insertable<FavoriteFolderItemsTableData> custom({
+    Expression<String>? folderId,
+    Expression<String>? recordId,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (folderId != null) 'folder_id': folderId,
+      if (recordId != null) 'record_id': recordId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FavoriteFolderItemsTableCompanion copyWith({
+    Value<String>? folderId,
+    Value<String>? recordId,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return FavoriteFolderItemsTableCompanion(
+      folderId: folderId ?? this.folderId,
+      recordId: recordId ?? this.recordId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (folderId.present) {
+      map['folder_id'] = Variable<String>(folderId.value);
+    }
+    if (recordId.present) {
+      map['record_id'] = Variable<String>(recordId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FavoriteFolderItemsTableCompanion(')
+          ..write('folderId: $folderId, ')
+          ..write('recordId: $recordId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ImageRecordsTableTable imageRecordsTable =
       $ImageRecordsTableTable(this);
+  late final $FavoriteFoldersTableTable favoriteFoldersTable =
+      $FavoriteFoldersTableTable(this);
+  late final $FavoriteFolderItemsTableTable favoriteFolderItemsTable =
+      $FavoriteFolderItemsTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [imageRecordsTable];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    imageRecordsTable,
+    favoriteFoldersTable,
+    favoriteFolderItemsTable,
+  ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'favorite_folders_table',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('favorite_folder_items_table', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'image_records_table',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('favorite_folder_items_table', kind: UpdateKind.delete),
+      ],
+    ),
+  ]);
 }
 
 typedef $$ImageRecordsTableTableCreateCompanionBuilder =
@@ -1169,6 +1800,48 @@ typedef $$ImageRecordsTableTableUpdateCompanionBuilder =
       Value<bool> isFavorite,
       Value<int> rowid,
     });
+
+final class $$ImageRecordsTableTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ImageRecordsTableTable,
+          ImageRecordsTableData
+        > {
+  $$ImageRecordsTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $FavoriteFolderItemsTableTable,
+    List<FavoriteFolderItemsTableData>
+  >
+  _favoriteFolderItemsTableRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.favoriteFolderItemsTable,
+        aliasName: $_aliasNameGenerator(
+          db.imageRecordsTable.id,
+          db.favoriteFolderItemsTable.recordId,
+        ),
+      );
+
+  $$FavoriteFolderItemsTableTableProcessedTableManager
+  get favoriteFolderItemsTableRefs {
+    final manager = $$FavoriteFolderItemsTableTableTableManager(
+      $_db,
+      $_db.favoriteFolderItemsTable,
+    ).filter((f) => f.recordId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _favoriteFolderItemsTableRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$ImageRecordsTableTableFilterComposer
     extends Composer<_$AppDatabase, $ImageRecordsTableTable> {
@@ -1273,6 +1946,33 @@ class $$ImageRecordsTableTableFilterComposer
     column: $table.isFavorite,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> favoriteFolderItemsTableRefs(
+    Expression<bool> Function($$FavoriteFolderItemsTableTableFilterComposer f)
+    f,
+  ) {
+    final $$FavoriteFolderItemsTableTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.favoriteFolderItemsTable,
+          getReferencedColumn: (t) => t.recordId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FavoriteFolderItemsTableTableFilterComposer(
+                $db: $db,
+                $table: $db.favoriteFolderItemsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ImageRecordsTableTableOrderingComposer
@@ -1465,6 +2165,33 @@ class $$ImageRecordsTableTableAnnotationComposer
     column: $table.isFavorite,
     builder: (column) => column,
   );
+
+  Expression<T> favoriteFolderItemsTableRefs<T extends Object>(
+    Expression<T> Function($$FavoriteFolderItemsTableTableAnnotationComposer a)
+    f,
+  ) {
+    final $$FavoriteFolderItemsTableTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.favoriteFolderItemsTable,
+          getReferencedColumn: (t) => t.recordId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FavoriteFolderItemsTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.favoriteFolderItemsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ImageRecordsTableTableTableManager
@@ -1478,16 +2205,9 @@ class $$ImageRecordsTableTableTableManager
           $$ImageRecordsTableTableAnnotationComposer,
           $$ImageRecordsTableTableCreateCompanionBuilder,
           $$ImageRecordsTableTableUpdateCompanionBuilder,
-          (
-            ImageRecordsTableData,
-            BaseReferences<
-              _$AppDatabase,
-              $ImageRecordsTableTable,
-              ImageRecordsTableData
-            >,
-          ),
+          (ImageRecordsTableData, $$ImageRecordsTableTableReferences),
           ImageRecordsTableData,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool favoriteFolderItemsTableRefs})
         > {
   $$ImageRecordsTableTableTableManager(
     _$AppDatabase db,
@@ -1594,9 +2314,45 @@ class $$ImageRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ImageRecordsTableTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({favoriteFolderItemsTableRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (favoriteFolderItemsTableRefs) db.favoriteFolderItemsTable,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (favoriteFolderItemsTableRefs)
+                    await $_getPrefetchedData<
+                      ImageRecordsTableData,
+                      $ImageRecordsTableTable,
+                      FavoriteFolderItemsTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ImageRecordsTableTableReferences
+                          ._favoriteFolderItemsTableRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ImageRecordsTableTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).favoriteFolderItemsTableRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.recordId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -1611,16 +2367,729 @@ typedef $$ImageRecordsTableTableProcessedTableManager =
       $$ImageRecordsTableTableAnnotationComposer,
       $$ImageRecordsTableTableCreateCompanionBuilder,
       $$ImageRecordsTableTableUpdateCompanionBuilder,
-      (
-        ImageRecordsTableData,
+      (ImageRecordsTableData, $$ImageRecordsTableTableReferences),
+      ImageRecordsTableData,
+      PrefetchHooks Function({bool favoriteFolderItemsTableRefs})
+    >;
+typedef $$FavoriteFoldersTableTableCreateCompanionBuilder =
+    FavoriteFoldersTableCompanion Function({
+      required String id,
+      required String title,
+      Value<bool> isDefault,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$FavoriteFoldersTableTableUpdateCompanionBuilder =
+    FavoriteFoldersTableCompanion Function({
+      Value<String> id,
+      Value<String> title,
+      Value<bool> isDefault,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$FavoriteFoldersTableTableReferences
+    extends
         BaseReferences<
           _$AppDatabase,
-          $ImageRecordsTableTable,
-          ImageRecordsTableData
-        >,
-      ),
-      ImageRecordsTableData,
-      PrefetchHooks Function()
+          $FavoriteFoldersTableTable,
+          FavoriteFoldersTableData
+        > {
+  $$FavoriteFoldersTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $FavoriteFolderItemsTableTable,
+    List<FavoriteFolderItemsTableData>
+  >
+  _favoriteFolderItemsTableRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.favoriteFolderItemsTable,
+        aliasName: $_aliasNameGenerator(
+          db.favoriteFoldersTable.id,
+          db.favoriteFolderItemsTable.folderId,
+        ),
+      );
+
+  $$FavoriteFolderItemsTableTableProcessedTableManager
+  get favoriteFolderItemsTableRefs {
+    final manager = $$FavoriteFolderItemsTableTableTableManager(
+      $_db,
+      $_db.favoriteFolderItemsTable,
+    ).filter((f) => f.folderId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _favoriteFolderItemsTableRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FavoriteFoldersTableTableFilterComposer
+    extends Composer<_$AppDatabase, $FavoriteFoldersTableTable> {
+  $$FavoriteFoldersTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> favoriteFolderItemsTableRefs(
+    Expression<bool> Function($$FavoriteFolderItemsTableTableFilterComposer f)
+    f,
+  ) {
+    final $$FavoriteFolderItemsTableTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.favoriteFolderItemsTable,
+          getReferencedColumn: (t) => t.folderId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FavoriteFolderItemsTableTableFilterComposer(
+                $db: $db,
+                $table: $db.favoriteFolderItemsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$FavoriteFoldersTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $FavoriteFoldersTableTable> {
+  $$FavoriteFoldersTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FavoriteFoldersTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FavoriteFoldersTableTable> {
+  $$FavoriteFoldersTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> favoriteFolderItemsTableRefs<T extends Object>(
+    Expression<T> Function($$FavoriteFolderItemsTableTableAnnotationComposer a)
+    f,
+  ) {
+    final $$FavoriteFolderItemsTableTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.favoriteFolderItemsTable,
+          getReferencedColumn: (t) => t.folderId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FavoriteFolderItemsTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.favoriteFolderItemsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$FavoriteFoldersTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FavoriteFoldersTableTable,
+          FavoriteFoldersTableData,
+          $$FavoriteFoldersTableTableFilterComposer,
+          $$FavoriteFoldersTableTableOrderingComposer,
+          $$FavoriteFoldersTableTableAnnotationComposer,
+          $$FavoriteFoldersTableTableCreateCompanionBuilder,
+          $$FavoriteFoldersTableTableUpdateCompanionBuilder,
+          (FavoriteFoldersTableData, $$FavoriteFoldersTableTableReferences),
+          FavoriteFoldersTableData,
+          PrefetchHooks Function({bool favoriteFolderItemsTableRefs})
+        > {
+  $$FavoriteFoldersTableTableTableManager(
+    _$AppDatabase db,
+    $FavoriteFoldersTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FavoriteFoldersTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FavoriteFoldersTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$FavoriteFoldersTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FavoriteFoldersTableCompanion(
+                id: id,
+                title: title,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                Value<bool> isDefault = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => FavoriteFoldersTableCompanion.insert(
+                id: id,
+                title: title,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FavoriteFoldersTableTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({favoriteFolderItemsTableRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (favoriteFolderItemsTableRefs) db.favoriteFolderItemsTable,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (favoriteFolderItemsTableRefs)
+                    await $_getPrefetchedData<
+                      FavoriteFoldersTableData,
+                      $FavoriteFoldersTableTable,
+                      FavoriteFolderItemsTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$FavoriteFoldersTableTableReferences
+                          ._favoriteFolderItemsTableRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$FavoriteFoldersTableTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).favoriteFolderItemsTableRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.folderId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FavoriteFoldersTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FavoriteFoldersTableTable,
+      FavoriteFoldersTableData,
+      $$FavoriteFoldersTableTableFilterComposer,
+      $$FavoriteFoldersTableTableOrderingComposer,
+      $$FavoriteFoldersTableTableAnnotationComposer,
+      $$FavoriteFoldersTableTableCreateCompanionBuilder,
+      $$FavoriteFoldersTableTableUpdateCompanionBuilder,
+      (FavoriteFoldersTableData, $$FavoriteFoldersTableTableReferences),
+      FavoriteFoldersTableData,
+      PrefetchHooks Function({bool favoriteFolderItemsTableRefs})
+    >;
+typedef $$FavoriteFolderItemsTableTableCreateCompanionBuilder =
+    FavoriteFolderItemsTableCompanion Function({
+      required String folderId,
+      required String recordId,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$FavoriteFolderItemsTableTableUpdateCompanionBuilder =
+    FavoriteFolderItemsTableCompanion Function({
+      Value<String> folderId,
+      Value<String> recordId,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$FavoriteFolderItemsTableTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $FavoriteFolderItemsTableTable,
+          FavoriteFolderItemsTableData
+        > {
+  $$FavoriteFolderItemsTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $FavoriteFoldersTableTable _folderIdTable(_$AppDatabase db) =>
+      db.favoriteFoldersTable.createAlias(
+        $_aliasNameGenerator(
+          db.favoriteFolderItemsTable.folderId,
+          db.favoriteFoldersTable.id,
+        ),
+      );
+
+  $$FavoriteFoldersTableTableProcessedTableManager get folderId {
+    final $_column = $_itemColumn<String>('folder_id')!;
+
+    final manager = $$FavoriteFoldersTableTableTableManager(
+      $_db,
+      $_db.favoriteFoldersTable,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_folderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ImageRecordsTableTable _recordIdTable(_$AppDatabase db) =>
+      db.imageRecordsTable.createAlias(
+        $_aliasNameGenerator(
+          db.favoriteFolderItemsTable.recordId,
+          db.imageRecordsTable.id,
+        ),
+      );
+
+  $$ImageRecordsTableTableProcessedTableManager get recordId {
+    final $_column = $_itemColumn<String>('record_id')!;
+
+    final manager = $$ImageRecordsTableTableTableManager(
+      $_db,
+      $_db.imageRecordsTable,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_recordIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$FavoriteFolderItemsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $FavoriteFolderItemsTableTable> {
+  $$FavoriteFolderItemsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$FavoriteFoldersTableTableFilterComposer get folderId {
+    final $$FavoriteFoldersTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.favoriteFoldersTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FavoriteFoldersTableTableFilterComposer(
+            $db: $db,
+            $table: $db.favoriteFoldersTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ImageRecordsTableTableFilterComposer get recordId {
+    final $$ImageRecordsTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.recordId,
+      referencedTable: $db.imageRecordsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ImageRecordsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.imageRecordsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FavoriteFolderItemsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $FavoriteFolderItemsTableTable> {
+  $$FavoriteFolderItemsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$FavoriteFoldersTableTableOrderingComposer get folderId {
+    final $$FavoriteFoldersTableTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.folderId,
+          referencedTable: $db.favoriteFoldersTable,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FavoriteFoldersTableTableOrderingComposer(
+                $db: $db,
+                $table: $db.favoriteFoldersTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$ImageRecordsTableTableOrderingComposer get recordId {
+    final $$ImageRecordsTableTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.recordId,
+      referencedTable: $db.imageRecordsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ImageRecordsTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.imageRecordsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FavoriteFolderItemsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FavoriteFolderItemsTableTable> {
+  $$FavoriteFolderItemsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$FavoriteFoldersTableTableAnnotationComposer get folderId {
+    final $$FavoriteFoldersTableTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.folderId,
+          referencedTable: $db.favoriteFoldersTable,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FavoriteFoldersTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.favoriteFoldersTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$ImageRecordsTableTableAnnotationComposer get recordId {
+    final $$ImageRecordsTableTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.recordId,
+          referencedTable: $db.imageRecordsTable,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ImageRecordsTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.imageRecordsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$FavoriteFolderItemsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FavoriteFolderItemsTableTable,
+          FavoriteFolderItemsTableData,
+          $$FavoriteFolderItemsTableTableFilterComposer,
+          $$FavoriteFolderItemsTableTableOrderingComposer,
+          $$FavoriteFolderItemsTableTableAnnotationComposer,
+          $$FavoriteFolderItemsTableTableCreateCompanionBuilder,
+          $$FavoriteFolderItemsTableTableUpdateCompanionBuilder,
+          (
+            FavoriteFolderItemsTableData,
+            $$FavoriteFolderItemsTableTableReferences,
+          ),
+          FavoriteFolderItemsTableData,
+          PrefetchHooks Function({bool folderId, bool recordId})
+        > {
+  $$FavoriteFolderItemsTableTableTableManager(
+    _$AppDatabase db,
+    $FavoriteFolderItemsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FavoriteFolderItemsTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$FavoriteFolderItemsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$FavoriteFolderItemsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> folderId = const Value.absent(),
+                Value<String> recordId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FavoriteFolderItemsTableCompanion(
+                folderId: folderId,
+                recordId: recordId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String folderId,
+                required String recordId,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => FavoriteFolderItemsTableCompanion.insert(
+                folderId: folderId,
+                recordId: recordId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FavoriteFolderItemsTableTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({folderId = false, recordId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (folderId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.folderId,
+                                referencedTable:
+                                    $$FavoriteFolderItemsTableTableReferences
+                                        ._folderIdTable(db),
+                                referencedColumn:
+                                    $$FavoriteFolderItemsTableTableReferences
+                                        ._folderIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (recordId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.recordId,
+                                referencedTable:
+                                    $$FavoriteFolderItemsTableTableReferences
+                                        ._recordIdTable(db),
+                                referencedColumn:
+                                    $$FavoriteFolderItemsTableTableReferences
+                                        ._recordIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FavoriteFolderItemsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FavoriteFolderItemsTableTable,
+      FavoriteFolderItemsTableData,
+      $$FavoriteFolderItemsTableTableFilterComposer,
+      $$FavoriteFolderItemsTableTableOrderingComposer,
+      $$FavoriteFolderItemsTableTableAnnotationComposer,
+      $$FavoriteFolderItemsTableTableCreateCompanionBuilder,
+      $$FavoriteFolderItemsTableTableUpdateCompanionBuilder,
+      (FavoriteFolderItemsTableData, $$FavoriteFolderItemsTableTableReferences),
+      FavoriteFolderItemsTableData,
+      PrefetchHooks Function({bool folderId, bool recordId})
     >;
 
 class $AppDatabaseManager {
@@ -1628,4 +3097,11 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$ImageRecordsTableTableTableManager get imageRecordsTable =>
       $$ImageRecordsTableTableTableManager(_db, _db.imageRecordsTable);
+  $$FavoriteFoldersTableTableTableManager get favoriteFoldersTable =>
+      $$FavoriteFoldersTableTableTableManager(_db, _db.favoriteFoldersTable);
+  $$FavoriteFolderItemsTableTableTableManager get favoriteFolderItemsTable =>
+      $$FavoriteFolderItemsTableTableTableManager(
+        _db,
+        _db.favoriteFolderItemsTable,
+      );
 }

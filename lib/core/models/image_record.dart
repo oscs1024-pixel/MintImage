@@ -48,6 +48,7 @@ class ImageRecord {
     required GenerationRequest request,
     required String model,
     required DateTime createdAt,
+    bool isFavorite = false,
   }) {
     return ImageRecord(
       id: id,
@@ -70,7 +71,7 @@ class ImageRecord {
       createdAt: createdAt,
       durationMs: null,
       usedSingleImageFallback: false,
-      isFavorite: false,
+      isFavorite: isFavorite,
     );
   }
 

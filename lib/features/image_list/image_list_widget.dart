@@ -21,7 +21,8 @@ class ImageListWidget extends ConsumerStatefulWidget {
     required this.selectedRecordIds,
     required this.onToggleSelection,
     required this.onSelectRecord,
-    required this.favoriteOnly,
+    required this.favoriteRecordIds,
+    required this.activeFavoriteFolderTitle,
     required this.searchQuery,
   });
 
@@ -37,7 +38,8 @@ class ImageListWidget extends ConsumerStatefulWidget {
   final Set<String> selectedRecordIds;
   final ValueChanged<String> onToggleSelection;
   final ValueChanged<String> onSelectRecord;
-  final bool favoriteOnly;
+  final Set<String>? favoriteRecordIds;
+  final String? activeFavoriteFolderTitle;
   final String searchQuery;
 
   @override
@@ -85,6 +87,8 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
     }
 
     if (records.isEmpty) {
+      final activeFavoriteFolderTitle = widget.activeFavoriteFolderTitle;
+      final hasSearchQuery = widget.searchQuery.trim().isNotEmpty;
       return RefreshIndicator(
         onRefresh: () => ref.read(imageListProvider.notifier).reload(),
         child: ListView(
@@ -93,10 +97,12 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
           children: [
             const SizedBox(height: 48),
             EmptyState(
-              title: widget.favoriteOnly ? '没有收藏记录' : '没有匹配结果',
-              description: widget.favoriteOnly
-                  ? '长按图像卡片并收藏后，可以在这里快速筛选。'
-                  : '换一个提示词关键词再试试。',
+              title: hasSearchQuery || activeFavoriteFolderTitle == null
+                  ? '没有匹配结果'
+                  : '$activeFavoriteFolderTitle 没有内容',
+              description: hasSearchQuery || activeFavoriteFolderTitle == null
+                  ? '换一个提示词关键词再试试。'
+                  : '从生成结果菜单添加收藏，或在这个收藏夹中直接生成新图片。',
             ),
           ],
         ),
@@ -169,9 +175,11 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
 
   List<ImageRecord> _filteredRecords(List<ImageRecord> records) {
     final query = widget.searchQuery.trim().toLowerCase();
+    final favoriteRecordIds = widget.favoriteRecordIds;
     return records
         .where((record) {
-          if (widget.favoriteOnly && !record.isFavorite) {
+          if (favoriteRecordIds != null &&
+              !favoriteRecordIds.contains(record.id)) {
             return false;
           }
           if (query.isNotEmpty &&

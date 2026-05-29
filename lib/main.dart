@@ -90,10 +90,16 @@ class _MainApp extends StatelessWidget {
         ),
         appDatabaseProvider.overrideWithValue(bootstrap.database),
         imageRecordDaoProvider.overrideWithValue(bootstrap.imageRecordDao),
+        favoriteFolderDaoProvider.overrideWithValue(
+          bootstrap.favoriteFolderDao,
+        ),
         initialSettingsModelProvider.overrideWithValue(
           bootstrap.initialSettings,
         ),
         initialImageRecordsProvider.overrideWithValue(bootstrap.initialRecords),
+        initialFavoriteFolderSnapshotProvider.overrideWithValue(
+          bootstrap.initialFavoriteFolderSnapshot,
+        ),
         requestLogServiceProvider.overrideWithValue(data.requestLogService),
       ],
       child: const GptImageApp(),
