@@ -111,9 +111,7 @@ class GenerationController extends StateNotifier<GenerationState> {
   }
 
   Future<void> _submitFromRecord(ImageRecord record) async {
-    final apiProfileId = record.apiProfileId.isNotEmpty
-        ? record.apiProfileId
-        : _ref.read(settingsProvider).activeProfileId;
+    final apiProfileId = _ref.read(settingsProvider).activeProfileId;
     final isAutoSize = record.width == 0 || record.height == 0;
 
     await submit(
