@@ -118,6 +118,8 @@ Future<void> _copyLegacyDatabaseIfNeeded(Directory directory, File file) async {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  AppDatabase.forTesting(super.executor);
+
   @override
   int get schemaVersion => 6;
 
@@ -125,37 +127,79 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
-        await migrator.addColumn(
+        await _addColumnIfMissing(
+          migrator,
           imageRecordsTable,
           imageRecordsTable.apiProfileId,
         );
-        await migrator.addColumn(
+        await _addColumnIfMissing(
+          migrator,
           imageRecordsTable,
           imageRecordsTable.usedSingleImageFallback,
         );
       }
       if (from < 3) {
-        await migrator.addColumn(
+        await _addColumnIfMissing(
+          migrator,
           imageRecordsTable,
           imageRecordsTable.rawApiResponseValue,
         );
       }
       if (from < 4) {
-        await migrator.addColumn(
+        await _addColumnIfMissing(
+          migrator,
           imageRecordsTable,
           imageRecordsTable.sourceImagePaths,
         );
       }
       if (from < 5) {
-        await migrator.addColumn(
+        await _addColumnIfMissing(
+          migrator,
           imageRecordsTable,
           imageRecordsTable.isFavorite,
         );
       }
       if (from < 6) {
-        await migrator.createTable(favoriteFoldersTable);
-        await migrator.createTable(favoriteFolderItemsTable);
+        await _createTableIfMissing(migrator, favoriteFoldersTable);
+        await _createTableIfMissing(migrator, favoriteFolderItemsTable);
       }
     },
   );
+
+  Future<void> _addColumnIfMissing(
+    Migrator migrator,
+    TableInfo<Table, Object?> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    if (await _columnExists(table.actualTableName, column.name)) {
+      return;
+    }
+    await migrator.addColumn(table, column);
+  }
+
+  Future<void> _createTableIfMissing(
+    Migrator migrator,
+    TableInfo<Table, Object?> table,
+  ) async {
+    if (await _tableExists(table.actualTableName)) {
+      return;
+    }
+    await migrator.createTable(table);
+  }
+
+  Future<bool> _columnExists(String tableName, String columnName) async {
+    final escapedTableName = tableName.replaceAll("'", "''");
+    final columns = await customSelect(
+      "PRAGMA table_info('$escapedTableName')",
+    ).get();
+    return columns.any((row) => row.data['name'] == columnName);
+  }
+
+  Future<bool> _tableExists(String tableName) async {
+    final rows = await customSelect(
+      'SELECT name FROM sqlite_master WHERE type = ? AND name = ?',
+      variables: [const Variable<String>('table'), Variable<String>(tableName)],
+    ).get();
+    return rows.isNotEmpty;
+  }
 }

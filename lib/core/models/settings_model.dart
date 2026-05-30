@@ -75,12 +75,125 @@ class ApiProfile {
   }
 }
 
+enum PromptOptimizationProtocol {
+  openAiChatCompletions('openai_chat_completions'),
+  openAiResponses('openai_responses'),
+  claudeMessages('claude_messages'),
+  geminiGenerateContent('gemini_generate_content');
+
+  const PromptOptimizationProtocol(this.storageValue);
+
+  final String storageValue;
+
+  String get label {
+    return switch (this) {
+      PromptOptimizationProtocol.openAiChatCompletions =>
+        'OpenAI Chat Completions',
+      PromptOptimizationProtocol.openAiResponses => 'OpenAI Responses',
+      PromptOptimizationProtocol.claudeMessages => 'Claude Messages',
+      PromptOptimizationProtocol.geminiGenerateContent => 'Gemini',
+    };
+  }
+
+  String get defaultBaseUrl {
+    return switch (this) {
+      PromptOptimizationProtocol.openAiChatCompletions ||
+      PromptOptimizationProtocol.openAiResponses => 'https://api.openai.com',
+      PromptOptimizationProtocol.claudeMessages => 'https://right.codes/claude',
+      PromptOptimizationProtocol.geminiGenerateContent =>
+        'https://right.codes/gemini',
+    };
+  }
+
+  String get defaultModel {
+    return switch (this) {
+      PromptOptimizationProtocol.openAiChatCompletions ||
+      PromptOptimizationProtocol.openAiResponses => 'gpt-5.5',
+      PromptOptimizationProtocol.claudeMessages => 'claude-sonnet-4-6',
+      PromptOptimizationProtocol.geminiGenerateContent => 'gemini-2.5-flash',
+    };
+  }
+
+  static PromptOptimizationProtocol fromStorageValue(Object? rawValue) {
+    final value = rawValue is String ? rawValue : '';
+    return PromptOptimizationProtocol.values.firstWhere(
+      (protocol) => protocol.storageValue == value,
+      orElse: () => PromptOptimizationProtocol.openAiResponses,
+    );
+  }
+}
+
+class PromptOptimizationProfile {
+  const PromptOptimizationProfile({
+    required this.id,
+    required this.name,
+    required this.baseUrl,
+    required this.apiKey,
+    required this.model,
+    required this.protocol,
+  });
+
+  factory PromptOptimizationProfile.fromJson(Map<String, dynamic> json) {
+    final protocol = PromptOptimizationProtocol.fromStorageValue(
+      json['protocol'],
+    );
+    return PromptOptimizationProfile(
+      id: json['id'] as String,
+      name: json['name'] as String? ?? '提示词优化',
+      baseUrl: json['baseUrl'] as String? ?? protocol.defaultBaseUrl,
+      apiKey: json['apiKey'] as String? ?? '',
+      model: json['model'] as String? ?? protocol.defaultModel,
+      protocol: protocol,
+    );
+  }
+
+  final String id;
+  final String name;
+  final String baseUrl;
+  final String apiKey;
+  final String model;
+  final PromptOptimizationProtocol protocol;
+
+  String get normalizedBaseUrl => baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+
+  PromptOptimizationProfile copyWith({
+    String? id,
+    String? name,
+    String? baseUrl,
+    String? apiKey,
+    String? model,
+    PromptOptimizationProtocol? protocol,
+  }) {
+    return PromptOptimizationProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      baseUrl: baseUrl ?? this.baseUrl,
+      apiKey: apiKey ?? this.apiKey,
+      model: model ?? this.model,
+      protocol: protocol ?? this.protocol,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'baseUrl': baseUrl,
+      'apiKey': apiKey,
+      'model': model,
+      'protocol': protocol.storageValue,
+    };
+  }
+}
+
 class SettingsModel {
   static const int defaultRequestTimeoutSeconds = 600;
 
   const SettingsModel({
     required this.profiles,
     required this.activeProfileId,
+    this.promptOptimizationProfiles = const [],
+    this.activePromptOptimizationProfileId,
     this.responseFormat,
     this.requestTimeoutSeconds = defaultRequestTimeoutSeconds,
   });
@@ -90,6 +203,8 @@ class SettingsModel {
     return SettingsModel(
       profiles: [defaultProfile],
       activeProfileId: defaultProfile.id,
+      promptOptimizationProfiles: const [],
+      activePromptOptimizationProfileId: null,
       responseFormat: null,
       requestTimeoutSeconds: defaultRequestTimeoutSeconds,
     );
@@ -111,10 +226,33 @@ class SettingsModel {
         profiles.any((profile) => profile.id == activeProfileId)
         ? activeProfileId!
         : profiles.first.id;
+    final rawPromptOptimizationProfiles = json['promptOptimizationProfiles'];
+    final promptOptimizationProfiles = rawPromptOptimizationProfiles is List
+        ? rawPromptOptimizationProfiles
+              .map(
+                (item) => PromptOptimizationProfile.fromJson(
+                  Map<String, dynamic>.from(item as Map),
+                ),
+              )
+              .toList()
+        : <PromptOptimizationProfile>[];
+    final activePromptOptimizationProfileId =
+        json['activePromptOptimizationProfileId'] as String?;
+    final resolvedActivePromptOptimizationProfileId =
+        promptOptimizationProfiles.any(
+          (profile) => profile.id == activePromptOptimizationProfileId,
+        )
+        ? activePromptOptimizationProfileId
+        : promptOptimizationProfiles.isEmpty
+        ? null
+        : promptOptimizationProfiles.first.id;
 
     return SettingsModel(
       profiles: profiles,
       activeProfileId: resolvedActiveProfileId,
+      promptOptimizationProfiles: promptOptimizationProfiles,
+      activePromptOptimizationProfileId:
+          resolvedActivePromptOptimizationProfileId,
       responseFormat: _normalizeResponseFormat(json['responseFormat']),
       requestTimeoutSeconds: _normalizeRequestTimeoutSeconds(
         json['requestTimeoutSeconds'],
@@ -124,6 +262,8 @@ class SettingsModel {
 
   final List<ApiProfile> profiles;
   final String activeProfileId;
+  final List<PromptOptimizationProfile> promptOptimizationProfiles;
+  final String? activePromptOptimizationProfileId;
   final String? responseFormat;
   final int requestTimeoutSeconds;
 
@@ -143,9 +283,40 @@ class SettingsModel {
     return null;
   }
 
+  PromptOptimizationProfile? get activePromptOptimizationProfile {
+    final activeId = activePromptOptimizationProfileId;
+    if (activeId == null) {
+      return promptOptimizationProfiles.isEmpty
+          ? null
+          : promptOptimizationProfiles.first;
+    }
+
+    for (final profile in promptOptimizationProfiles) {
+      if (profile.id == activeId) {
+        return profile;
+      }
+    }
+
+    return promptOptimizationProfiles.isEmpty
+        ? null
+        : promptOptimizationProfiles.first;
+  }
+
+  PromptOptimizationProfile? promptOptimizationProfileById(String id) {
+    for (final profile in promptOptimizationProfiles) {
+      if (profile.id == id) {
+        return profile;
+      }
+    }
+    return null;
+  }
+
   SettingsModel copyWith({
     List<ApiProfile>? profiles,
     String? activeProfileId,
+    List<PromptOptimizationProfile>? promptOptimizationProfiles,
+    String? activePromptOptimizationProfileId,
+    bool clearActivePromptOptimizationProfileId = false,
     String? responseFormat,
     bool clearResponseFormat = false,
     int? requestTimeoutSeconds,
@@ -153,6 +324,12 @@ class SettingsModel {
     return SettingsModel(
       profiles: profiles ?? this.profiles,
       activeProfileId: activeProfileId ?? this.activeProfileId,
+      promptOptimizationProfiles:
+          promptOptimizationProfiles ?? this.promptOptimizationProfiles,
+      activePromptOptimizationProfileId: clearActivePromptOptimizationProfileId
+          ? null
+          : activePromptOptimizationProfileId ??
+                this.activePromptOptimizationProfileId,
       responseFormat: clearResponseFormat
           ? null
           : responseFormat ?? this.responseFormat,
@@ -165,6 +342,10 @@ class SettingsModel {
     return {
       'profiles': profiles.map((profile) => profile.toJson()).toList(),
       'activeProfileId': activeProfileId,
+      'promptOptimizationProfiles': promptOptimizationProfiles
+          .map((profile) => profile.toJson())
+          .toList(),
+      'activePromptOptimizationProfileId': activePromptOptimizationProfileId,
       'responseFormat': responseFormat,
       'requestTimeoutSeconds': requestTimeoutSeconds,
     };

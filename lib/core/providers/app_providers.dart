@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/image_edit_api.dart';
 import '../api/image_generation_api.dart';
+import '../api/prompt_optimization_api.dart';
 import '../database/app_database.dart';
 import '../database/favorite_folder_dao.dart';
 import '../database/image_record_dao.dart';
@@ -44,6 +45,12 @@ final imageGenerationApiProvider = Provider<ImageGenerationApi>(
 final imageEditApiProvider = Provider<ImageEditApi>(
   (ref) =>
       ImageEditApi(requestLogService: ref.watch(requestLogServiceProvider)),
+);
+
+final promptOptimizationApiProvider = Provider<PromptOptimizationApi>(
+  (ref) => PromptOptimizationApi(
+    requestLogService: ref.watch(requestLogServiceProvider),
+  ),
 );
 
 final imageStorageServiceProvider = Provider<ImageStorageService>(

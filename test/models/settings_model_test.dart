@@ -13,13 +13,48 @@ void main() {
   });
 
   test('settings round-trip preserves request timeout', () {
+    final optimizer = PromptOptimizationProfile(
+      id: 'optimizer-1',
+      name: '优化',
+      baseUrl: 'https://right.codes/codex/v1',
+      apiKey: 'key',
+      model: 'gpt-5.5',
+      protocol: PromptOptimizationProtocol.openAiResponses,
+    );
     final settings = SettingsModel.initial().copyWith(
       requestTimeoutSeconds: 900,
+      promptOptimizationProfiles: [optimizer],
+      activePromptOptimizationProfileId: optimizer.id,
     );
 
     final decoded = SettingsModel.decode(settings.encode());
 
     expect(decoded.requestTimeoutSeconds, 900);
+    expect(decoded.promptOptimizationProfiles, hasLength(1));
+    expect(decoded.activePromptOptimizationProfile?.id, 'optimizer-1');
+    expect(
+      decoded.activePromptOptimizationProfile?.protocol,
+      PromptOptimizationProtocol.openAiResponses,
+    );
+  });
+
+  test('legacy settings default to no prompt optimization profiles', () {
+    final decoded = SettingsModel.fromJson({
+      'profiles': [
+        {
+          'id': '1',
+          'name': '默认',
+          'baseUrl': 'https://api.openai.com',
+          'apiKey': 'key',
+          'model': 'gpt-image-2',
+        },
+      ],
+      'activeProfileId': '1',
+      'requestTimeoutSeconds': 600,
+    });
+
+    expect(decoded.promptOptimizationProfiles, isEmpty);
+    expect(decoded.activePromptOptimizationProfile, isNull);
   });
 
   test('legacy b64_json responseFormat is normalized to null', () {

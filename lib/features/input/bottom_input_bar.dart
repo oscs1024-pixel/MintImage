@@ -4,9 +4,11 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/openai_client.dart';
+import '../../core/api/prompt_optimization_api.dart';
 import '../../core/models/generation_request.dart';
 import '../../core/models/image_record.dart';
 import '../../core/providers/app_providers.dart';
@@ -44,12 +46,15 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
   int _customWidth = 0;
   int _customHeight = 0;
   bool _submitting = false;
+  bool _optimizingPrompt = false;
+  CancelToken? _optimizationCancelToken;
   List<PickedAttachment> _attachments = const [];
 
   int get attachmentCount => _attachments.length;
 
   @override
   void dispose() {
+    _optimizationCancelToken?.cancel();
     _promptController.dispose();
     _promptFocusNode.dispose();
     super.dispose();
@@ -174,6 +179,8 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     final settings = ref.watch(settingsProvider);
     final activeProfile = settings.activeProfile;
     final hasApiKey = activeProfile.apiKey.trim().isNotEmpty;
+    final hasPromptOptimizationProfile =
+        settings.activePromptOptimizationProfile != null;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final theme = Theme.of(context);
 
@@ -218,6 +225,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                                 key: const Key('prompt-input'),
                                 controller: _promptController,
                                 focusNode: _promptFocusNode,
+                                readOnly: _optimizingPrompt,
                                 minLines: 1,
                                 maxLines: 4,
                                 textInputAction: TextInputAction.newline,
@@ -230,10 +238,16 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
+                          _PromptOptimizeButton(
+                            enabled: hasPromptOptimizationProfile,
+                            loading: _optimizingPrompt,
+                            onTap: _handlePromptOptimizationTap,
+                          ),
+                          const SizedBox(width: 8),
                           _SendButton(
                             key: const Key('submit-generation-button'),
-                            enabled: hasApiKey,
+                            enabled: hasApiKey && !_optimizingPrompt,
                             onTap: _submit,
                           ),
                         ],
@@ -297,7 +311,9 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                             height: 36,
                             child: IconButton(
                               tooltip: '添加图片',
-                              onPressed: _submitting ? null : _pickAttachments,
+                              onPressed: _submitting || _optimizingPrompt
+                                  ? null
+                                  : _pickAttachments,
                               icon: const Icon(
                                 Icons.attach_file_rounded,
                                 size: 20,
@@ -335,6 +351,10 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode _, KeyEvent event) {
+    if (_optimizingPrompt) {
+      return KeyEventResult.handled;
+    }
+
     if (!_isDesktopPlatform) {
       return KeyEventResult.ignored;
     }
@@ -360,6 +380,10 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
   }
 
   void _insertNewLine() {
+    if (_optimizingPrompt) {
+      return;
+    }
+
     final value = _promptController.value;
     final selection = value.selection;
     final start = selection.start.clamp(0, value.text.length);
@@ -401,7 +425,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
   }
 
   Future<void> _submit() async {
-    if (_submitting) {
+    if (_submitting || _optimizingPrompt) {
       return;
     }
 
@@ -453,10 +477,306 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     }
   }
 
+  Future<void> _handlePromptOptimizationTap() async {
+    if (_optimizingPrompt) {
+      _optimizationCancelToken?.cancel('cancelled by user');
+      return;
+    }
+
+    final prompt = _promptController.text.trim();
+    if (prompt.isEmpty) {
+      _showMessage('提示词不能为空。');
+      return;
+    }
+
+    final settings = ref.read(settingsProvider);
+    final profile = settings.activePromptOptimizationProfile;
+    if (profile == null) {
+      _showMessage('请先在设置中添加提示词优化 API。');
+      return;
+    }
+
+    if (profile.apiKey.trim().isEmpty) {
+      _showMessage('当前提示词优化配置缺少 API Key。');
+      return;
+    }
+
+    final direction = await _showPromptOptimizationDirectionSheet();
+    if (direction == null || !mounted) {
+      return;
+    }
+
+    await _optimizePrompt(
+      originalPrompt: prompt,
+      direction: direction,
+      profileId: profile.id,
+    );
+  }
+
+  Future<PromptOptimizationDirection?>
+  _showPromptOptimizationDirectionSheet() async {
+    return showModalBottomSheet<PromptOptimizationDirection>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '优化方向',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final direction in PromptOptimizationDirection.values)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.of(context).pop(direction),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppThemeTokens.surfaceSoft,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppThemeTokens.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 18,
+                              color: AppThemeTokens.primaryStrong,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    direction.label,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color: AppThemeTokens.textPrimary,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    direction.description,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: AppThemeTokens.textSecondary,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _optimizePrompt({
+    required String originalPrompt,
+    required PromptOptimizationDirection direction,
+    required String profileId,
+  }) async {
+    final settings = ref.read(settingsProvider);
+    final profile = settings.promptOptimizationProfileById(profileId);
+    if (profile == null) {
+      _showMessage('提示词优化配置已不存在。');
+      return;
+    }
+
+    final cancelToken = CancelToken();
+    _optimizationCancelToken = cancelToken;
+    _promptFocusNode.unfocus();
+    setState(() {
+      _optimizingPrompt = true;
+    });
+
+    try {
+      final optimized = await ref
+          .read(promptOptimizationApiProvider)
+          .optimize(
+            prompt: originalPrompt,
+            direction: direction,
+            profile: profile,
+            timeoutSeconds: settings.requestTimeoutSeconds,
+            cancelToken: cancelToken,
+          );
+      if (!mounted || cancelToken.isCancelled) {
+        return;
+      }
+
+      _promptController.value = TextEditingValue(
+        text: optimized,
+        selection: TextSelection.collapsed(offset: optimized.length),
+      );
+    } on ApiException catch (error) {
+      if (!mounted || cancelToken.isCancelled) {
+        return;
+      }
+      _showMessage(error.message);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage(error.toString());
+    } finally {
+      if (mounted && identical(_optimizationCancelToken, cancelToken)) {
+        setState(() {
+          _optimizingPrompt = false;
+          _optimizationCancelToken = null;
+        });
+      }
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _PromptOptimizeButton extends StatefulWidget {
+  const _PromptOptimizeButton({
+    required this.enabled,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final bool enabled;
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  State<_PromptOptimizeButton> createState() => _PromptOptimizeButtonState();
+}
+
+class _PromptOptimizeButtonState extends State<_PromptOptimizeButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    if (widget.loading) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _PromptOptimizeButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.loading && !oldWidget.loading) {
+      _controller.repeat();
+    } else if (!widget.loading && oldWidget.loading) {
+      _controller.stop();
+      _controller.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.enabled || widget.loading;
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: active ? 1 : 0.56,
+      child: SizedBox(
+        width: 44,
+        height: 50,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: active ? widget.onTap : null,
+            borderRadius: BorderRadius.circular(17),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(17),
+                gradient: widget.loading
+                    ? null
+                    : const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFFFC857),
+                          Color(0xFFFF6B6B),
+                          Color(0xFF3B82F6),
+                        ],
+                      ),
+                color: widget.loading ? AppThemeTokens.surfaceSoft : null,
+                border: widget.loading
+                    ? Border.all(color: AppThemeTokens.border)
+                    : null,
+              ),
+              child: Center(
+                child: widget.loading
+                    ? RotationTransition(
+                        turns: _controller,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const SizedBox.square(
+                              dimension: 27,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: AppThemeTokens.primaryStrong,
+                              ),
+                            ),
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: AppThemeTokens.primaryStrong,
+                                borderRadius: BorderRadius.circular(2.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 23,
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

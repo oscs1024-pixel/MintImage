@@ -1,0 +1,59 @@
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mint_image/core/database/app_database.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+void main() {
+  test('migration skips duplicate is_favorite column', () async {
+    final sqlite = sqlite3.openInMemory();
+    sqlite.execute('''
+      CREATE TABLE image_records_table (
+        id TEXT NOT NULL PRIMARY KEY,
+        prompt TEXT NOT NULL,
+        api_profile_id TEXT NOT NULL DEFAULT '',
+        source_image_path TEXT NULL,
+        source_image_paths TEXT NULL,
+        result_image_path TEXT NULL,
+        result_image_url TEXT NULL,
+        result_b64 TEXT NULL,
+        width INTEGER NOT NULL,
+        height INTEGER NOT NULL,
+        quality TEXT NOT NULL,
+        model TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_message TEXT NULL,
+        raw_api_response_value TEXT NULL,
+        created_at INTEGER NOT NULL,
+        duration_ms INTEGER NULL,
+        used_single_image_fallback INTEGER NOT NULL DEFAULT 0
+          CHECK (used_single_image_fallback IN (0, 1)),
+        is_favorite INTEGER NOT NULL DEFAULT 0
+          CHECK (is_favorite IN (0, 1))
+      );
+    ''');
+    sqlite.execute('PRAGMA user_version = 4;');
+
+    final database = AppDatabase.forTesting(
+      NativeDatabase.opened(sqlite, closeUnderlyingOnClose: true),
+    );
+    addTearDown(database.close);
+
+    await database.customSelect('SELECT 1').get();
+
+    final columns = await database
+        .customSelect("PRAGMA table_info('image_records_table')")
+        .get();
+    expect(
+      columns.where((row) => row.data['name'] == 'is_favorite'),
+      hasLength(1),
+    );
+
+    final favoriteTables = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name = 'favorite_folders_table'",
+        )
+        .get();
+    expect(favoriteTables, isNotEmpty);
+  });
+}

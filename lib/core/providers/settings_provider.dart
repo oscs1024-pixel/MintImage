@@ -95,6 +95,72 @@ class SettingsController extends StateNotifier<SettingsModel> {
     await _persist();
   }
 
+  Future<PromptOptimizationProfile> addPromptOptimizationProfile({
+    String? name,
+    String? baseUrl,
+    String? apiKey,
+    String? model,
+    PromptOptimizationProtocol protocol =
+        PromptOptimizationProtocol.openAiResponses,
+  }) async {
+    final nextIndex = state.promptOptimizationProfiles.length + 1;
+    final profile = PromptOptimizationProfile(
+      id: _uuid.v4(),
+      name: name ?? '优化配置 $nextIndex',
+      baseUrl: baseUrl ?? protocol.defaultBaseUrl,
+      apiKey: apiKey ?? '',
+      model: model ?? protocol.defaultModel,
+      protocol: protocol,
+    );
+    state = state.copyWith(
+      promptOptimizationProfiles: [
+        ...state.promptOptimizationProfiles,
+        profile,
+      ],
+      activePromptOptimizationProfileId:
+          state.activePromptOptimizationProfileId ?? profile.id,
+    );
+    await _persist();
+    return profile;
+  }
+
+  Future<void> updatePromptOptimizationProfile(
+    PromptOptimizationProfile profile,
+  ) async {
+    final profiles = [
+      for (final item in state.promptOptimizationProfiles)
+        if (item.id == profile.id) profile else item,
+    ];
+    state = state.copyWith(promptOptimizationProfiles: profiles);
+    await _persist();
+  }
+
+  Future<void> deletePromptOptimizationProfile(String id) async {
+    final profiles = state.promptOptimizationProfiles
+        .where((profile) => profile.id != id)
+        .toList();
+    final activeProfileId = state.activePromptOptimizationProfileId == id
+        ? profiles.isEmpty
+              ? null
+              : profiles.first.id
+        : state.activePromptOptimizationProfileId;
+
+    state = state.copyWith(
+      promptOptimizationProfiles: profiles,
+      activePromptOptimizationProfileId: activeProfileId,
+      clearActivePromptOptimizationProfileId: activeProfileId == null,
+    );
+    await _persist();
+  }
+
+  Future<void> setActivePromptOptimizationProfile(String id) async {
+    if (!state.promptOptimizationProfiles.any((profile) => profile.id == id)) {
+      return;
+    }
+    state = state.copyWith(activePromptOptimizationProfileId: id);
+    await _persist();
+  }
+
   Future<void> setRequestTimeoutSeconds(int seconds) async {
     if (seconds <= 0) {
       return;

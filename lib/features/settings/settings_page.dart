@@ -12,6 +12,7 @@ import '../../core/version/app_version.dart';
 import '../../shared/theme.dart';
 import '../logs/request_log_page.dart';
 import 'api_profile_edit_page.dart';
+import 'prompt_optimization_profile_edit_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -21,19 +22,7 @@ class SettingsPage extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              tooltip: '新增配置',
-              onPressed: () => _openEditor(context),
-              icon: const Icon(Icons.add_rounded),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('设置')),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -59,10 +48,15 @@ class SettingsPage extends ConsumerWidget {
               actionLabel: '查看日志',
               onAction: () => _openRequestLogs(context),
             ),
-            const SizedBox(height: 12),
-            for (final profile in settings.profiles) ...[
+            const SizedBox(height: 16),
+            _SectionTitle(
+              icon: Icons.auto_awesome_motion_rounded,
+              title: '生图API',
+            ),
+            const SizedBox(height: 8),
+            for (final profile in settings.profiles)
               Slidable(
-                key: ValueKey(profile.id),
+                key: ValueKey('image-${profile.id}'),
                 endActionPane: settings.profiles.length <= 1
                     ? null
                     : ActionPane(
@@ -82,8 +76,8 @@ class SettingsPage extends ConsumerWidget {
                         ],
                       ),
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _ProfileCard(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _ImageProfileCard(
                     profile: profile,
                     isActive: profile.id == settings.activeProfileId,
                     onTap: () async {
@@ -91,12 +85,68 @@ class SettingsPage extends ConsumerWidget {
                           .read(settingsProvider.notifier)
                           .setActiveProfile(profile.id);
                     },
-                    onEdit: () => _openEditor(context, profile: profile),
+                    onEdit: () => _openImageEditor(context, profile: profile),
                   ),
                 ),
               ),
+            _AddConfigButton(
+              icon: Icons.add_rounded,
+              label: '添加生图 API',
+              onTap: () => _openImageEditor(context),
+            ),
+            const SizedBox(height: 18),
+            const Divider(),
+            const SizedBox(height: 14),
+            _SectionTitle(icon: Icons.auto_fix_high_rounded, title: '提示词优化API'),
+            const SizedBox(height: 8),
+            if (settings.promptOptimizationProfiles.isEmpty) ...[
+              _EmptyConfigHint(text: '还没有提示词优化 API。添加后，首页输入框右侧会启用提示词优化。'),
+              const SizedBox(height: 8),
             ],
-            const SizedBox(height: 12),
+            for (final profile in settings.promptOptimizationProfiles)
+              Slidable(
+                key: ValueKey('optimizer-${profile.id}'),
+                endActionPane: ActionPane(
+                  motion: const ScrollMotion(),
+                  children: [
+                    SlidableAction(
+                      onPressed: (_) async {
+                        await ref
+                            .read(settingsProvider.notifier)
+                            .deletePromptOptimizationProfile(profile.id);
+                      },
+                      backgroundColor: Colors.red.shade400,
+                      foregroundColor: Colors.white,
+                      icon: Icons.delete_rounded,
+                      label: '删除',
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _PromptOptimizationProfileCard(
+                    profile: profile,
+                    isActive:
+                        profile.id ==
+                        settings.activePromptOptimizationProfileId,
+                    onTap: () async {
+                      await ref
+                          .read(settingsProvider.notifier)
+                          .setActivePromptOptimizationProfile(profile.id);
+                    },
+                    onEdit: () => _openPromptOptimizationEditor(
+                      context,
+                      profile: profile,
+                    ),
+                  ),
+                ),
+              ),
+            _AddConfigButton(
+              icon: Icons.add_rounded,
+              label: '添加提示词优化 API',
+              onTap: () => _openPromptOptimizationEditor(context),
+            ),
+            const SizedBox(height: 16),
             FilledButton.tonalIcon(
               onPressed: () async {
                 final confirmed = await showDialog<bool>(
@@ -144,10 +194,24 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _openEditor(BuildContext context, {ApiProfile? profile}) async {
+  Future<void> _openImageEditor(
+    BuildContext context, {
+    ApiProfile? profile,
+  }) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ApiProfileEditPage(profile: profile),
+      ),
+    );
+  }
+
+  Future<void> _openPromptOptimizationEditor(
+    BuildContext context, {
+    PromptOptimizationProfile? profile,
+  }) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PromptOptimizationProfileEditPage(profile: profile),
       ),
     );
   }
@@ -389,8 +453,101 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 17, color: AppThemeTokens.primaryStrong),
+        const SizedBox(width: 7),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: AppThemeTokens.textPrimary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddConfigButton extends StatelessWidget {
+  const _AddConfigButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppThemeTokens.surfaceSoft,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppThemeTokens.border),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: AppThemeTokens.primaryStrong),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: AppThemeTokens.primaryStrong,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyConfigHint extends StatelessWidget {
+  const _EmptyConfigHint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppThemeTokens.border),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppThemeTokens.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _ImageProfileCard extends StatelessWidget {
+  const _ImageProfileCard({
     required this.profile,
     required this.isActive,
     required this.onTap,
@@ -409,10 +566,10 @@ class _ProfileCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          decoration: AppDecorations.card(radius: 28, color: tint),
-          padding: const EdgeInsets.all(18),
+          decoration: AppDecorations.card(radius: 18, color: tint),
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -421,14 +578,17 @@ class _ProfileCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       profile.name,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppThemeTokens.textPrimary,
+                      ),
                     ),
                   ),
                   if (isActive)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 6,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -454,11 +614,16 @@ class _ProfileCard extends StatelessWidget {
                   IconButton(
                     tooltip: '编辑',
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_rounded),
+                    icon: const Icon(Icons.edit_rounded, size: 19),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 34,
+                      height: 34,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
               Text(
                 profile.normalizedBaseUrl,
                 maxLines: 1,
@@ -468,9 +633,137 @@ class _ProfileCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 3),
               Text(
                 '模型：${profile.model}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PromptOptimizationProfileCard extends StatelessWidget {
+  const _PromptOptimizationProfileCard({
+    required this.profile,
+    required this.isActive,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  final PromptOptimizationProfile profile;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = isActive ? AppThemeTokens.surfaceSoft : Colors.white;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          decoration: AppDecorations.card(radius: 18, color: tint),
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      profile.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppThemeTokens.textPrimary,
+                      ),
+                    ),
+                  ),
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 14,
+                            color: AppThemeTokens.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '使用中',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: '编辑',
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_rounded, size: 19),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 34,
+                      height: 34,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppThemeTokens.surfaceMuted,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      profile.protocol.label,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppThemeTokens.primaryStrong,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      profile.normalizedBaseUrl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppThemeTokens.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '模型：${profile.model}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
