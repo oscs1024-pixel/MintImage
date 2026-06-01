@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -21,19 +20,8 @@ class ImageClipboardService {
       throw const ImageClipboardException('当前平台不支持复制图片。');
     }
 
-    if (Platform.isWindows) {
-      final path = await _prepareClipboardFile(record);
-      await _channel.invokeMethod<void>('copyImageFile', {'path': path});
-      return;
-    }
-
-    final encodedBytes = await _loadEncodedBytes(record);
-    final decoded = await _decodeToRgba(encodedBytes);
-    await _channel.invokeMethod<void>('copyImage', {
-      'width': decoded.width,
-      'height': decoded.height,
-      'rgba': decoded.rgba,
-    });
+    final path = await _prepareClipboardFile(record);
+    await _channel.invokeMethod<void>('copyImageFile', {'path': path});
   }
 
   Future<Uint8List> _loadEncodedBytes(ImageRecord record) async {
@@ -80,35 +68,6 @@ class ImageClipboardService {
     return file.path;
   }
 
-  Future<_DecodedImage> _decodeToRgba(Uint8List encodedBytes) async {
-    final codec = await ui.instantiateImageCodec(encodedBytes);
-    try {
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
-      try {
-        final byteData = await image.toByteData(
-          format: ui.ImageByteFormat.rawRgba,
-        );
-        if (byteData == null) {
-          throw const ImageClipboardException('图片解码失败。');
-        }
-
-        return _DecodedImage(
-          width: image.width,
-          height: image.height,
-          rgba: byteData.buffer.asUint8List(
-            byteData.offsetInBytes,
-            byteData.lengthInBytes,
-          ),
-        );
-      } finally {
-        image.dispose();
-      }
-    } finally {
-      codec.dispose();
-    }
-  }
-
   String _stripDataUrlPrefix(String value) {
     final commaIndex = value.indexOf(',');
     if (commaIndex == -1 ||
@@ -152,16 +111,4 @@ class ImageClipboardException implements Exception {
 
   @override
   String toString() => message;
-}
-
-class _DecodedImage {
-  const _DecodedImage({
-    required this.width,
-    required this.height,
-    required this.rgba,
-  });
-
-  final int width;
-  final int height;
-  final Uint8List rgba;
 }
