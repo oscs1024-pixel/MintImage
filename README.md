@@ -17,9 +17,13 @@ Windows · macOS · Android
 
 ## 截图
 
-<img width="1035" height="713" alt="image" src="https://github.com/user-attachments/assets/28d1b2d8-effb-4c02-98f1-7eb697f4e4d6" />
+<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/87b8b66f-17d4-4b41-a06a-e1f39936b95e" />
 
-<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/419d3b28-b692-4271-884c-608838b2c853" />
+<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/3d014dce-6c02-49b3-a5a6-55ace9591ef6" />
+
+<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/f72ea01f-1b53-41ff-94a8-981ebeddf87b" />
+
+<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/bc45353c-7e15-4564-b838-71aad375e832" />
 
 ## 使用方法
 
