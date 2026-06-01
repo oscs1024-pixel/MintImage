@@ -9,6 +9,8 @@ import '../../core/models/image_record.dart';
 import '../../core/providers/favorite_folders_provider.dart';
 import '../../shared/theme.dart';
 
+const double _folderThumbnailSize = 50;
+
 Future<String?> showFavoriteFolderBrowserSheet(BuildContext context) {
   return showModalBottomSheet<String>(
     context: context,
@@ -317,55 +319,68 @@ class _FavoriteFolderRow extends StatelessWidget {
             color: selected ? Colors.orange.shade300 : AppThemeTokens.border,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${folder.title}（${folder.recordCount}）',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppThemeTokens.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+            Expanded(
+              child: Text(
+                '${folder.title}（${folder.recordCount}）',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: AppThemeTokens.textPrimary,
+                  fontWeight: FontWeight.w800,
                 ),
-                if (recordMode && selected)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: 18,
-                    color: Colors.orange.shade700,
-                  ),
-              ],
+              ),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 24,
-              child: folder.previewRecords.isEmpty
-                  ? Text(
-                      '暂无收藏',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppThemeTokens.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: folder.previewRecords.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 4),
-                      itemBuilder: (context, index) {
-                        return _FolderThumbnail(
-                          record: folder.previewRecords[index],
-                        );
-                      },
-                    ),
-            ),
+            if (recordMode && selected) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.check_circle_rounded,
+                size: 18,
+                color: Colors.orange.shade700,
+              ),
+            ],
+            const SizedBox(width: 10),
+            _FolderPreviewStrip(records: folder.previewRecords),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FolderPreviewStrip extends StatelessWidget {
+  const _FolderPreviewStrip({required this.records});
+
+  final List<ImageRecord> records;
+
+  @override
+  Widget build(BuildContext context) {
+    if (records.isEmpty) {
+      return SizedBox(
+        height: _folderThumbnailSize,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '暂无收藏',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        for (int index = 0; index < records.length; index++) ...[
+          if (index > 0) const SizedBox(width: 6),
+          _FolderThumbnail(record: records[index]),
+        ],
+      ],
     );
   }
 }
@@ -379,7 +394,13 @@ class _FolderThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
-      child: SizedBox.square(dimension: 24, child: _buildImage()),
+      child: SizedBox.square(
+        dimension: _folderThumbnailSize,
+        child: ColoredBox(
+          color: AppThemeTokens.surfaceSoft,
+          child: _buildImage(),
+        ),
+      ),
     );
   }
 
@@ -388,11 +409,11 @@ class _FolderThumbnail extends StatelessWidget {
     if (localPath != null && File(localPath).existsSync()) {
       return Image.file(
         File(localPath),
-        width: 24,
-        height: 24,
-        fit: BoxFit.cover,
-        cacheWidth: 48,
-        cacheHeight: 48,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.contain,
+        // 只指定一个缓存维度，保持原始宽高比解码，避免被压成方形导致拉伸。
+        cacheWidth: 100,
       );
     }
 
@@ -400,22 +421,21 @@ class _FolderThumbnail extends StatelessWidget {
     if (url != null && url.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: url,
-        width: 24,
-        height: 24,
-        fit: BoxFit.cover,
-        memCacheWidth: 48,
-        memCacheHeight: 48,
-        maxWidthDiskCache: 48,
-        maxHeightDiskCache: 48,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.contain,
+        // 只约束宽度，保持原始宽高比，避免被压成方形导致拉伸。
+        memCacheWidth: 100,
+        maxWidthDiskCache: 100,
         placeholder: (_, _) => const ColoredBox(color: AppThemeTokens.surface),
         errorWidget: (_, _, _) =>
-            const Icon(Icons.broken_image_rounded, size: 14),
+            const Icon(Icons.image_not_supported_rounded, size: 14),
       );
     }
 
     return const ColoredBox(
-      color: AppThemeTokens.surface,
-      child: Icon(Icons.image_rounded, size: 14),
+      color: AppThemeTokens.surfaceSoft,
+      child: Center(child: Icon(Icons.broken_image_rounded, size: 14)),
     );
   }
 }

@@ -9,7 +9,7 @@ import 'app_providers.dart';
 import 'image_list_provider.dart';
 
 const _uuid = Uuid();
-const _maxPreviewRecords = 12;
+const _maxPreviewRecords = 3;
 
 final favoriteFoldersProvider =
     StateNotifierProvider<FavoriteFolderController, FavoriteFoldersState>((

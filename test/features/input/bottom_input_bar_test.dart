@@ -131,11 +131,26 @@ void main() {
     expect(submittedRequest!.outputFormat, ImageOutputFormat.webp);
   });
 
-  testWidgets('does not show inline api source switcher', (tester) async {
+  testWidgets('shows inline api source switcher and can change profile', (
+    tester,
+  ) async {
     await _pumpInputBar(tester, settings: _settingsWithTwoProfiles);
 
-    expect(find.byTooltip('切换生图 API'), findsNothing);
-    expect(find.text('备用'), findsNothing);
+    expect(find.byTooltip('切换生图 API'), findsOneWidget);
+    expect(find.text('API'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('切换生图 API'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('备用'), findsOneWidget);
+
+    await tester.tap(find.text('备用'));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(BottomInputBar)),
+    );
+    expect(container.read(settingsProvider).activeProfileId, 'api-2');
   });
 
   testWidgets('long pressing send switches api profile and submits', (
@@ -155,7 +170,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('切换到API配置并发送'), findsOneWidget);
-    expect(find.widgetWithText(InkWell, 'API'), findsNothing);
     expect(find.text('备用'), findsOneWidget);
     expect(find.text('第三'), findsOneWidget);
 

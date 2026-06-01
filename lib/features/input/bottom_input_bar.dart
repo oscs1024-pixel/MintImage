@@ -12,6 +12,7 @@ import '../../core/api/openai_client.dart';
 import '../../core/api/prompt_optimization_api.dart';
 import '../../core/models/generation_request.dart';
 import '../../core/models/image_record.dart';
+import '../../core/models/settings_model.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/attachment_picker_service.dart';
@@ -336,7 +337,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                                               const EdgeInsets.fromLTRB(
                                                 12,
                                                 15,
-                                                38,
+                                                70,
                                                 7,
                                               ),
                                         ),
@@ -347,13 +348,26 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                                       bottom: 0,
                                       height: _primaryInputHeight,
                                       child: Center(
-                                        child: _PromptOptimizeButton(
-                                          key: const Key(
-                                            'prompt-optimize-button',
-                                          ),
-                                          enabled: true,
-                                          loading: _optimizingPrompt,
-                                          onTap: _handlePromptOptimizationTap,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _AttachmentInputButton(
+                                              enabled:
+                                                  !_submitting &&
+                                                  !_optimizingPrompt,
+                                              onTap: _pickAttachments,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            _PromptOptimizeButton(
+                                              key: const Key(
+                                                'prompt-optimize-button',
+                                              ),
+                                              enabled: true,
+                                              loading: _optimizingPrompt,
+                                              onTap:
+                                                  _handlePromptOptimizationTap,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -372,12 +386,15 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SizedBox(
+                            width: constraints.maxWidth,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   SizeSelector(
                                     currentWidth: _customWidth,
@@ -423,33 +440,16 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
                                       });
                                     },
                                   ),
+                                  const SizedBox(width: 6),
+                                  _ApiProfileSwitchButton(
+                                    activeProfile: activeProfile,
+                                    onTap: _showApiProfileSwitchSheet,
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: IconButton(
-                              tooltip: '添加图片',
-                              onPressed: _submitting || _optimizingPrompt
-                                  ? null
-                                  : _pickAttachments,
-                              icon: const Icon(
-                                Icons.attach_file_rounded,
-                                size: 18,
-                              ),
-                              padding: EdgeInsets.zero,
-                              style: IconButton.styleFrom(
-                                backgroundColor: AppThemeTokens.surfaceSoft,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                       if (!hasApiKey) ...[
                         const SizedBox(height: 6),
@@ -723,6 +723,68 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
       return;
     }
     await _submit(apiProfileId: selectedProfileId);
+  }
+
+  Future<void> _showApiProfileSwitchSheet() async {
+    if (_optimizingPrompt) {
+      return;
+    }
+
+    final settings = ref.read(settingsProvider);
+    final selectedProfileId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '切换生图 API',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              for (final profile in settings.profiles)
+                ListTile(
+                  leading: Icon(
+                    profile.id == settings.activeProfileId
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    color: profile.id == settings.activeProfileId
+                        ? AppThemeTokens.primary
+                        : AppThemeTokens.textSecondary,
+                  ),
+                  title: Text(profile.name),
+                  subtitle: Text(
+                    profile.normalizedBaseUrl,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: profile.apiKey.trim().isEmpty
+                      ? const Icon(Icons.key_off_rounded, size: 18)
+                      : null,
+                  onTap: () => Navigator.of(ctx).pop(profile.id),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selectedProfileId == null) {
+      return;
+    }
+
+    await ref
+        .read(settingsProvider.notifier)
+        .setActiveProfile(selectedProfileId);
   }
 
   Future<void> _handlePromptOptimizationTap() async {
@@ -1039,6 +1101,99 @@ class _PromptOptimizeButtonState extends State<_PromptOptimizeButton>
               onTap: active ? widget.onTap : null,
               borderRadius: BorderRadius.circular(8),
               child: Center(child: widget.loading ? loadingWidget : iconWidget),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AttachmentInputButton extends StatelessWidget {
+  const _AttachmentInputButton({required this.enabled, required this.onTap});
+
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '添加图片',
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: enabled ? 1 : 0.38,
+        child: SizedBox(
+          width: _promptOptimizeButtonSize,
+          height: _promptOptimizeButtonSize,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: enabled ? onTap : null,
+              borderRadius: BorderRadius.circular(8),
+              child: const Center(
+                child: Icon(
+                  Icons.attach_file_rounded,
+                  color: AppThemeTokens.primaryStrong,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ApiProfileSwitchButton extends StatelessWidget {
+  const _ApiProfileSwitchButton({
+    required this.activeProfile,
+    required this.onTap,
+  });
+
+  final ApiProfile activeProfile;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '切换生图 API',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 90),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 28),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppThemeTokens.surfaceSoft,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppThemeTokens.border.withValues(alpha: 0.7),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.hub_rounded,
+                  size: 13,
+                  color: AppThemeTokens.primaryStrong,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    activeProfile.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppThemeTokens.primaryStrong,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
