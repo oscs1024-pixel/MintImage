@@ -1,43 +1,67 @@
+<div align="center">
+
+<img src="icon/icon-windows-透明背景.png" width="120" alt="MintImage" />
+
 # MintImage
 
-跨平台 AI 图像生成客户端，支持所有 OpenAI 兼容 API。
+**跨平台 AI 图像生成客户端**
 
-## 功能
+输入一句提示词，让 AI 为你生成图片。兼容所有 OpenAI 格式的图像 API。
+
+![Flutter](https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Android-5A5A5A)
+![License](https://img.shields.io/badge/license-MIT-3DA639)
+[![Release](https://img.shields.io/github/v/release/aiqinxuancai/MintImage?color=FF7A59)](https://github.com/aiqinxuancai/MintImage/releases)
+
+[下载安装包](https://github.com/aiqinxuancai/MintImage/releases)
+
+</div>
+
+---
+
+## ✨ 功能
 
 - **文生图** — 输入提示词，AI 为你生成图片
 - **图生图** — 上传参考图，用文字描述修改方向
-- **丰富尺寸** — 1K/2K/4K 多档位、8 种常用比例，或自定义任意宽高
+- **提示词优化** — 一键润色提示词，让描述更精准
+- **丰富尺寸** — 1K / 2K / 4K 多档位、8 种常用比例，或自定义任意宽高
 - **批量生成** — 一次最多生成 16 张
-- **多配置切换** — 同时管理多个 API 地址和密钥
-- **历史记录** — 所有生成结果本地保存，随时回顾
+- **收藏夹** — 把满意的结果分类整理，随时回看
+- **历史记录** — 所有生成结果本地保存，离线可查
+- **多配置切换** — 同时管理多个 API 地址与密钥，一键切换
 
-## 支持平台
+## 📸 截图
 
-Windows · macOS · Android 
+<img width="1266" height="713" alt="screenshot-1" src="https://github.com/user-attachments/assets/87b8b66f-17d4-4b41-a06a-e1f39936b95e" />
 
-## 截图
+<img width="1266" height="713" alt="screenshot-2" src="https://github.com/user-attachments/assets/3d014dce-6c02-49b3-a5a6-55ace9591ef6" />
 
-<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/87b8b66f-17d4-4b41-a06a-e1f39936b95e" />
+<img width="1266" height="713" alt="screenshot-3" src="https://github.com/user-attachments/assets/f72ea01f-1b53-41ff-94a8-981ebeddf87b" />
 
-<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/3d014dce-6c02-49b3-a5a6-55ace9591ef6" />
+<img width="1266" height="713" alt="screenshot-4" src="https://github.com/user-attachments/assets/bc45353c-7e15-4564-b838-71aad375e832" />
 
-<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/f72ea01f-1b53-41ff-94a8-981ebeddf87b" />
+## 🚀 快速开始
 
-<img width="1266" height="713" alt="image" src="https://github.com/user-attachments/assets/bc45353c-7e15-4564-b838-71aad375e832" />
-
-## 使用方法
-
-1. 下载对应平台的安装包（见 [Releases](https://github.com/aiqinxuancai/MintImage/releases)）
+1. 从 [Releases](https://github.com/aiqinxuancai/MintImage/releases) 下载对应平台的安装包
 2. 打开应用，进入设置页
 3. 填写 API 地址、密钥和模型名
 4. 回到主页，输入提示词，开始生成
 
+## 📦 自行构建
+
+```bash
+flutter pub get
+flutter run            # 调试运行
+flutter build windows  # 或 macos / apk
+```
+
 ---
 
-该项目已在 [LINUX DO](https://linux.do/) 社区中分享。
+<div align="center">
 
----
+该项目已在 [LINUX DO](https://linux.do/) 社区分享。
 
-## License
+基于 [MIT](LICENSE) 协议开源。
 
-MIT
+</div>
+
