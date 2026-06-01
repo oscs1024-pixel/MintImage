@@ -258,6 +258,7 @@ class SettingsModel {
     this.lastCustomHeight = 0,
     this.lastQuality = ImageQuality.auto,
     this.lastOutputFormat = ImageOutputFormat.png,
+    this.previewInfoCollapsed = false,
   });
 
   factory SettingsModel.initial() {
@@ -336,6 +337,7 @@ class SettingsModel {
       ),
       lastQuality: _normalizeImageQuality(json['lastQuality']),
       lastOutputFormat: _normalizeImageOutputFormat(json['lastOutputFormat']),
+      previewInfoCollapsed: _normalizeBool(json['previewInfoCollapsed']),
     );
   }
 
@@ -350,6 +352,7 @@ class SettingsModel {
   final int lastCustomHeight;
   final ImageQuality lastQuality;
   final ImageOutputFormat lastOutputFormat;
+  final bool previewInfoCollapsed;
 
   ApiProfile get activeProfile {
     return profiles.firstWhere(
@@ -409,6 +412,7 @@ class SettingsModel {
     int? lastCustomHeight,
     ImageQuality? lastQuality,
     ImageOutputFormat? lastOutputFormat,
+    bool? previewInfoCollapsed,
   }) {
     return SettingsModel(
       profiles: profiles ?? this.profiles,
@@ -429,6 +433,7 @@ class SettingsModel {
       lastCustomHeight: lastCustomHeight ?? this.lastCustomHeight,
       lastQuality: lastQuality ?? this.lastQuality,
       lastOutputFormat: lastOutputFormat ?? this.lastOutputFormat,
+      previewInfoCollapsed: previewInfoCollapsed ?? this.previewInfoCollapsed,
     );
   }
 
@@ -447,6 +452,7 @@ class SettingsModel {
       'lastCustomHeight': lastCustomHeight,
       'lastQuality': lastQuality.apiValue,
       'lastOutputFormat': lastOutputFormat.apiValue,
+      'previewInfoCollapsed': previewInfoCollapsed,
     };
   }
 
@@ -527,6 +533,15 @@ class SettingsModel {
       (format) => format.apiValue == value,
       orElse: () => ImageOutputFormat.png,
     );
+  }
+
+  static bool _normalizeBool(Object? rawValue, {bool fallback = false}) {
+    return switch (rawValue) {
+      bool value => value,
+      String value => value == 'true',
+      num value => value != 0,
+      _ => fallback,
+    };
   }
 
   static int _fallbackWidthForPreset(SizePreset preset) {

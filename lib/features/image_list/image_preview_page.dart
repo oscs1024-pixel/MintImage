@@ -9,6 +9,7 @@ import 'package:photo_view/photo_view.dart';
 
 import '../../core/models/image_record.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/settings_provider.dart';
 import '../../shared/theme.dart';
 
 class ImagePreviewPage extends ConsumerStatefulWidget {
@@ -29,10 +30,12 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
   late final PhotoViewController _photoViewController;
   late final PhotoViewScaleStateController _scaleStateController;
   late Future<String?> _actualSizeLabelFuture;
+  late Future<String?> _fileSizeLabelFuture;
   StreamSubscription<PhotoViewControllerValue>? _controllerSubscription;
 
   double? _baselineScale;
   double _currentScale = 1.0;
+  bool _infoCollapsed = false;
 
   bool get _supportsPointerScrollZoom => Platform.isWindows || Platform.isMacOS;
 
@@ -42,6 +45,8 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
     _photoViewController = PhotoViewController();
     _scaleStateController = PhotoViewScaleStateController();
     _actualSizeLabelFuture = _resolveActualSizeLabel();
+    _fileSizeLabelFuture = _resolveFileSizeLabel();
+    _infoCollapsed = ref.read(settingsProvider).previewInfoCollapsed;
     _controllerSubscription = _photoViewController.outputStateStream.listen(
       _handleControllerValue,
     );
@@ -52,6 +57,7 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.record != widget.record) {
       _actualSizeLabelFuture = _resolveActualSizeLabel();
+      _fileSizeLabelFuture = _resolveFileSizeLabel();
     }
   }
 
@@ -91,19 +97,79 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
             left: 16,
             right: 16,
             bottom: 24,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 240),
+                switchInCurve: Curves.easeOutBack,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: animation,
+                    alignment: Alignment.bottomLeft,
+                    child: child,
+                  ),
+                ),
+                child: _infoCollapsed
+                    ? _buildCollapsedInfoButton()
+                    : _buildExpandedInfoPanel(record),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Wrap(
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleInfoCollapsed() {
+    final next = !_infoCollapsed;
+    setState(() => _infoCollapsed = next);
+    ref.read(settingsProvider.notifier).setPreviewInfoCollapsed(next);
+  }
+
+  Widget _buildCollapsedInfoButton() {
+    return Material(
+      key: const ValueKey('preview-info-collapsed'),
+      color: Colors.black.withValues(alpha: 0.72),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _toggleInfoCollapsed,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: const Icon(Icons.info_outline_rounded, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedInfoPanel(ImageRecord record) {
+    return Container(
+      key: const ValueKey('preview-info-expanded'),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 8, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
@@ -111,29 +177,41 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
                         _ActualSizePreviewChip(
                           labelFuture: _actualSizeLabelFuture,
                         ),
+                        _FileSizePreviewChip(
+                          labelFuture: _fileSizeLabelFuture,
+                        ),
+                        _PreviewChip(label: record.outputFormatLabel),
                         _PreviewChip(label: record.qualityLabel),
                         _PreviewChip(label: record.model),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 84),
-                      child: SingleChildScrollView(
-                        child: Text(
-                          record.prompt,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: '收起',
+                  onPressed: _toggleInfoCollapsed,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.close_fullscreen_rounded,
+                    color: Colors.white70,
+                    size: 18,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 84),
+              child: SingleChildScrollView(
+                child: Text(
+                  record.prompt,
+                  style: const TextStyle(color: Colors.white, height: 1.45),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -253,6 +331,54 @@ class _ImagePreviewPageState extends ConsumerState<ImagePreviewPage> {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<String?> _resolveFileSizeLabel() async {
+    final record = widget.record;
+    try {
+      final resultImagePath = record.resultImagePath;
+      if (resultImagePath != null && File(resultImagePath).existsSync()) {
+        return _formatBytes(File(resultImagePath).lengthSync());
+      }
+
+      final sourceImagePath = record.sourceImagePath;
+      if (sourceImagePath != null && File(sourceImagePath).existsSync()) {
+        return _formatBytes(File(sourceImagePath).lengthSync());
+      }
+
+      final b64 = record.resultB64;
+      if (b64 != null && b64.isNotEmpty) {
+        return _formatBytes(_estimateBase64Bytes(b64));
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  int _estimateBase64Bytes(String b64) {
+    final normalized = b64.contains(',') ? b64.split(',').last : b64;
+    final padding = normalized.endsWith('==')
+        ? 2
+        : normalized.endsWith('=')
+        ? 1
+        : 0;
+    return (normalized.length * 3 ~/ 4) - padding;
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) {
+      return '--';
+    }
+    const kb = 1024;
+    const mb = kb * 1024;
+    if (bytes >= mb) {
+      return '${(bytes / mb).toStringAsFixed(2)}M';
+    }
+    final kbValue = bytes / kb;
+    return kbValue >= 10
+        ? '${kbValue.round()}K'
+        : '${kbValue.toStringAsFixed(1)}K';
   }
 
   ImageProvider? _previewImageProvider() {
@@ -392,6 +518,22 @@ class _ActualSizePreviewChip extends StatelessWidget {
       future: labelFuture,
       builder: (context, snapshot) {
         return _PreviewChip(label: snapshot.data ?? '实际尺寸--');
+      },
+    );
+  }
+}
+
+class _FileSizePreviewChip extends StatelessWidget {
+  const _FileSizePreviewChip({required this.labelFuture});
+
+  final Future<String?> labelFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: labelFuture,
+      builder: (context, snapshot) {
+        return _PreviewChip(label: snapshot.data ?? '--');
       },
     );
   }

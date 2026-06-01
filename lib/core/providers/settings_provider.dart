@@ -190,6 +190,14 @@ class SettingsController extends StateNotifier<SettingsModel> {
     await _persist();
   }
 
+  Future<void> setPreviewInfoCollapsed(bool collapsed) async {
+    if (state.previewInfoCollapsed == collapsed) {
+      return;
+    }
+    state = state.copyWith(previewInfoCollapsed: collapsed);
+    await _persist();
+  }
+
   Future<void> _persist() async {
     await _sharedPreferences.setString(_settingsStorageKey, state.encode());
   }

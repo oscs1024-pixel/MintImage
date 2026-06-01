@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/image_record.dart';
 import '../../core/providers/generation_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/services/image_clipboard_service.dart';
 import '../../shared/theme.dart';
 import 'image_preview_page.dart';
 
@@ -275,11 +276,12 @@ class ImageCell extends ConsumerWidget {
 
   Future<void> _showActions(BuildContext context) async {
     final canEdit = record.status == ImageRecordStatus.done;
+    final pageContext = context;
 
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -317,6 +319,15 @@ class ImageCell extends ConsumerWidget {
                   onTap: () {
                     Navigator.of(context).pop();
                     onAppendCurrentImageToAttachments();
+                  },
+                ),
+              if (_showsCopyImageAction && _canCopyImage)
+                ListTile(
+                  leading: const Icon(Icons.copy_rounded),
+                  title: const Text('复制图片到剪贴板'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _copyImageToClipboard(pageContext);
                   },
                 ),
               ListTile(
@@ -363,6 +374,43 @@ class ImageCell extends ConsumerWidget {
         );
       },
     );
+  }
+
+  bool get _showsCopyImageAction {
+    return Platform.isMacOS || Platform.isWindows;
+  }
+
+  bool get _canCopyImage {
+    return record.resultImagePath != null ||
+        record.sourceImagePath != null ||
+        record.resultB64 != null ||
+        record.resultImageUrl != null;
+  }
+
+  Future<void> _copyImageToClipboard(BuildContext context) async {
+    try {
+      await const ImageClipboardService().copyRecordImage(record);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已复制图片到剪贴板。')));
+    } on ImageClipboardException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('复制图片失败：$error')));
+    }
   }
 
   Future<void> _showErrorDetails(BuildContext context) async {
