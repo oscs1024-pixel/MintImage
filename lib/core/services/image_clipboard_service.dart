@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../models/image_record.dart';
 
@@ -20,9 +21,14 @@ class ImageClipboardService {
       throw const ImageClipboardException('当前平台不支持复制图片。');
     }
 
+    if (Platform.isWindows) {
+      final path = await _prepareClipboardFile(record);
+      await _channel.invokeMethod<void>('copyImageFile', {'path': path});
+      return;
+    }
+
     final encodedBytes = await _loadEncodedBytes(record);
     final decoded = await _decodeToRgba(encodedBytes);
-
     await _channel.invokeMethod<void>('copyImage', {
       'width': decoded.width,
       'height': decoded.height,
@@ -54,6 +60,24 @@ class ImageClipboardService {
     }
 
     throw const ImageClipboardException('这条记录没有可复制的图片。');
+  }
+
+  Future<String> _prepareClipboardFile(ImageRecord record) async {
+    final localPath = record.resultImagePath ?? record.sourceImagePath;
+    if (localPath != null && File(localPath).existsSync()) {
+      return localPath;
+    }
+
+    final encodedBytes = await _loadEncodedBytes(record);
+    final tempDirectory = await getTemporaryDirectory();
+    final safeId = record.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final extension = _clipboardFileExtension(record);
+    final file = File(
+      '${tempDirectory.path}${Platform.pathSeparator}'
+      'mint_image_clipboard_$safeId.$extension',
+    );
+    await file.writeAsBytes(encodedBytes, flush: true);
+    return file.path;
   }
 
   Future<_DecodedImage> _decodeToRgba(Uint8List encodedBytes) async {
@@ -92,6 +116,32 @@ class ImageClipboardService {
       return value;
     }
     return value.substring(commaIndex + 1);
+  }
+
+  String _clipboardFileExtension(ImageRecord record) {
+    final outputFormat = record.outputFormat.trim().toLowerCase();
+    if (outputFormat == 'png' ||
+        outputFormat == 'jpg' ||
+        outputFormat == 'jpeg' ||
+        outputFormat == 'webp') {
+      return outputFormat == 'jpg' ? 'jpeg' : outputFormat;
+    }
+
+    final uri = Uri.tryParse(record.resultImageUrl?.trim() ?? '');
+    final lastSegment = uri == null || uri.pathSegments.isEmpty
+        ? ''
+        : uri.pathSegments.last;
+    final extension = lastSegment.contains('.')
+        ? lastSegment.split('.').last.toLowerCase()
+        : '';
+    if (extension == 'png' ||
+        extension == 'jpg' ||
+        extension == 'jpeg' ||
+        extension == 'webp') {
+      return extension == 'jpg' ? 'jpeg' : extension;
+    }
+
+    return 'png';
   }
 }
 

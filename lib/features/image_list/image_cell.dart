@@ -280,96 +280,99 @@ class ImageCell extends ConsumerWidget {
 
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (sheetContext) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.refresh_rounded),
-                title: const Text('复用提示词'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onReusePrompt();
-                },
-              ),
-              if (canEdit)
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 ListTile(
                   leading: const Icon(Icons.refresh_rounded),
-                  title: const Text('再生成一张'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onRegenerate();
-                  },
-                ),
-              if (canEdit)
-                ListTile(
-                  leading: const Icon(Icons.edit_rounded),
-                  title: const Text('以此改图'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onReuseEdit();
-                  },
-                ),
-              if (currentAttachmentCount > 0)
-                ListTile(
-                  leading: const Icon(Icons.add_photo_alternate_rounded),
-                  title: Text('将此图添加到附件${currentAttachmentCount + 1}'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onAppendCurrentImageToAttachments();
-                  },
-                ),
-              if (_showsCopyImageAction && _canCopyImage)
-                ListTile(
-                  leading: const Icon(Icons.copy_rounded),
-                  title: const Text('复制图片到剪贴板'),
+                  title: const Text('复用提示词'),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
-                    _copyImageToClipboard(pageContext);
+                    onReusePrompt();
                   },
                 ),
-              ListTile(
-                leading: Icon(
-                  Icons.star_border_rounded,
-                  color: record.isFavorite ? Colors.orange.shade700 : null,
-                ),
-                title: const Text('收藏到...'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onToggleFavorite();
-                },
-              ),
-              if (record.status == ImageRecordStatus.loading ||
-                  record.status == ImageRecordStatus.pending)
+                if (canEdit)
+                  ListTile(
+                    leading: const Icon(Icons.refresh_rounded),
+                    title: const Text('再生成一张'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      onRegenerate();
+                    },
+                  ),
+                if (canEdit)
+                  ListTile(
+                    leading: const Icon(Icons.edit_rounded),
+                    title: const Text('以此改图'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      onReuseEdit();
+                    },
+                  ),
+                if (currentAttachmentCount > 0)
+                  ListTile(
+                    leading: const Icon(Icons.add_photo_alternate_rounded),
+                    title: Text('将此图添加到附件${currentAttachmentCount + 1}'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      onAppendCurrentImageToAttachments();
+                    },
+                  ),
+                if (_showsCopyImageAction && _canCopyImage)
+                  ListTile(
+                    leading: const Icon(Icons.copy_rounded),
+                    title: const Text('复制图片到剪贴板'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _copyImageToClipboard(pageContext);
+                    },
+                  ),
                 ListTile(
-                  leading: const Icon(Icons.close_rounded),
-                  title: const Text('取消当前请求'),
+                  leading: Icon(
+                    Icons.star_border_rounded,
+                    color: record.isFavorite ? Colors.orange.shade700 : null,
+                  ),
+                  title: const Text('收藏到...'),
                   onTap: () {
-                    Navigator.of(context).pop();
-                    onCancel();
+                    Navigator.of(sheetContext).pop();
+                    onToggleFavorite();
                   },
                 ),
-              if (record.status == ImageRecordStatus.error ||
-                  record.status == ImageRecordStatus.cancelled)
+                if (record.status == ImageRecordStatus.loading ||
+                    record.status == ImageRecordStatus.pending)
+                  ListTile(
+                    leading: const Icon(Icons.close_rounded),
+                    title: const Text('取消当前请求'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      onCancel();
+                    },
+                  ),
+                if (record.status == ImageRecordStatus.error ||
+                    record.status == ImageRecordStatus.cancelled)
+                  ListTile(
+                    leading: const Icon(Icons.refresh_rounded),
+                    title: const Text('重试本次请求'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      onRetry();
+                    },
+                  ),
                 ListTile(
-                  leading: const Icon(Icons.refresh_rounded),
-                  title: const Text('重试本次请求'),
+                  leading: const Icon(Icons.delete_rounded),
+                  title: const Text('删除这条记录'),
                   onTap: () {
-                    Navigator.of(context).pop();
-                    onRetry();
+                    Navigator.of(sheetContext).pop();
+                    onDelete();
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.delete_rounded),
-                title: const Text('删除这条记录'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onDelete();
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

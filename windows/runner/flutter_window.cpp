@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <shellapi.h>
+#include <shlobj_core.h>
 #include <string>
 #include <variant>
 #include <vector>
@@ -37,6 +39,112 @@ bool ReadIntValue(const flutter::EncodableValue* value, int* output) {
     return true;
   }
   return false;
+}
+
+bool ReadStringValue(const flutter::EncodableValue* value, std::string* output) {
+  if (!value || !output) {
+    return false;
+  }
+  if (const auto* string_value = std::get_if<std::string>(value)) {
+    *output = *string_value;
+    return true;
+  }
+  return false;
+}
+
+std::wstring Utf8ToWideString(const std::string& value) {
+  if (value.empty()) {
+    return std::wstring();
+  }
+
+  const int size = MultiByteToWideChar(
+      CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0);
+  if (size <= 0) {
+    return std::wstring();
+  }
+
+  std::wstring wide(size, L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, value.c_str(),
+                      static_cast<int>(value.size()), wide.data(), size);
+  return wide;
+}
+
+HGLOBAL CreateDropEffectData() {
+  HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD));
+  if (!memory) {
+    return nullptr;
+  }
+
+  void* locked = GlobalLock(memory);
+  if (!locked) {
+    GlobalFree(memory);
+    return nullptr;
+  }
+
+  *static_cast<DWORD*>(locked) = DROPEFFECT_COPY;
+  GlobalUnlock(memory);
+  return memory;
+}
+
+bool CopyImageFileToClipboard(HWND hwnd, const std::wstring& path) {
+  if (path.empty()) {
+    return false;
+  }
+
+  const size_t path_bytes = (path.size() + 2) * sizeof(wchar_t);
+  const size_t allocation_size = sizeof(DROPFILES) + path_bytes;
+  HGLOBAL clipboard_data = GlobalAlloc(GMEM_MOVEABLE, allocation_size);
+  if (!clipboard_data) {
+    return false;
+  }
+
+  void* locked_data = GlobalLock(clipboard_data);
+  if (!locked_data) {
+    GlobalFree(clipboard_data);
+    return false;
+  }
+
+  std::memset(locked_data, 0, allocation_size);
+  auto* drop_files = static_cast<DROPFILES*>(locked_data);
+  drop_files->pFiles = sizeof(DROPFILES);
+  drop_files->fWide = TRUE;
+
+  auto* file_list = reinterpret_cast<wchar_t*>(
+      static_cast<uint8_t*>(locked_data) + sizeof(DROPFILES));
+  std::memcpy(file_list, path.c_str(), (path.size() + 1) * sizeof(wchar_t));
+  file_list[path.size() + 1] = L'\0';
+  GlobalUnlock(clipboard_data);
+
+  HGLOBAL drop_effect = CreateDropEffectData();
+
+  if (!OpenClipboard(hwnd)) {
+    GlobalFree(clipboard_data);
+    if (drop_effect) {
+      GlobalFree(drop_effect);
+    }
+    return false;
+  }
+
+  EmptyClipboard();
+  if (!SetClipboardData(CF_HDROP, clipboard_data)) {
+    CloseClipboard();
+    GlobalFree(clipboard_data);
+    if (drop_effect) {
+      GlobalFree(drop_effect);
+    }
+    return false;
+  }
+
+  if (drop_effect) {
+    const UINT drop_effect_format =
+        RegisterClipboardFormat(CFSTR_PREFERREDDROPEFFECT);
+    if (!SetClipboardData(drop_effect_format, drop_effect)) {
+      GlobalFree(drop_effect);
+    }
+  }
+
+  CloseClipboard();
+  return true;
 }
 
 bool CopyRgbaImageToClipboard(HWND hwnd,
@@ -104,6 +212,25 @@ void HandleImageClipboardMethod(
     HWND hwnd,
     const flutter::MethodCall<flutter::EncodableValue>& method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  if (method_call.method_name() == "copyImageFile") {
+    const auto* arguments =
+        std::get_if<flutter::EncodableMap>(method_call.arguments());
+    std::string path;
+    if (!arguments ||
+        !ReadStringValue(FindMapValue(*arguments, "path"), &path)) {
+      result->Error("bad_args", "Invalid image file path.");
+      return;
+    }
+
+    if (!CopyImageFileToClipboard(hwnd, Utf8ToWideString(path))) {
+      result->Error("copy_failed", "Failed to copy image file to clipboard.");
+      return;
+    }
+
+    result->Success();
+    return;
+  }
+
   if (method_call.method_name().compare("copyImage") != 0) {
     result->NotImplemented();
     return;
