@@ -623,89 +623,92 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
 
     final selectedProfileId = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
         return SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '切换到API配置并发送',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '切换到API配置并发送',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                for (final profile in profiles)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => Navigator.of(ctx).pop(profile.id),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 11,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppThemeTokens.surfaceSoft,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppThemeTokens.border),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.hub_rounded,
-                              size: 18,
-                              color: AppThemeTokens.primaryStrong,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    profile.name,
-                                    style: Theme.of(ctx).textTheme.labelLarge
-                                        ?.copyWith(
-                                          color: AppThemeTokens.textPrimary,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    profile.normalizedBaseUrl,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(ctx).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: AppThemeTokens.textSecondary,
-                                        ),
-                                  ),
-                                ],
+                  const SizedBox(height: 8),
+                  for (final profile in profiles)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => Navigator.of(ctx).pop(profile.id),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 13,
+                            vertical: 11,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppThemeTokens.surfaceSoft,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppThemeTokens.border),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.hub_rounded,
+                                size: 18,
+                                color: AppThemeTokens.primaryStrong,
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Icon(
-                              profile.apiKey.trim().isEmpty
-                                  ? Icons.key_off_rounded
-                                  : Icons.arrow_upward_rounded,
-                              size: 18,
-                              color: profile.apiKey.trim().isEmpty
-                                  ? AppThemeTokens.textSecondary
-                                  : AppThemeTokens.primaryStrong,
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      profile.name,
+                                      style: Theme.of(ctx).textTheme.labelLarge
+                                          ?.copyWith(
+                                            color: AppThemeTokens.textPrimary,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      profile.normalizedBaseUrl,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(ctx).textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: AppThemeTokens.textSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Icon(
+                                profile.apiKey.trim().isEmpty
+                                    ? Icons.key_off_rounded
+                                    : Icons.arrow_upward_rounded,
+                                size: 18,
+                                color: profile.apiKey.trim().isEmpty
+                                    ? AppThemeTokens.textSecondary
+                                    : AppThemeTokens.primaryStrong,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -733,46 +736,49 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     final settings = ref.read(settingsProvider);
     final selectedProfileId = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '切换生图 API',
-                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '切换生图 API',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              for (final profile in settings.profiles)
-                ListTile(
-                  leading: Icon(
-                    profile.id == settings.activeProfileId
-                        ? Icons.check_circle_rounded
-                        : Icons.circle_outlined,
-                    color: profile.id == settings.activeProfileId
-                        ? AppThemeTokens.primary
-                        : AppThemeTokens.textSecondary,
+                for (final profile in settings.profiles)
+                  ListTile(
+                    leading: Icon(
+                      profile.id == settings.activeProfileId
+                          ? Icons.check_circle_rounded
+                          : Icons.circle_outlined,
+                      color: profile.id == settings.activeProfileId
+                          ? AppThemeTokens.primary
+                          : AppThemeTokens.textSecondary,
+                    ),
+                    title: Text(profile.name),
+                    subtitle: Text(
+                      profile.normalizedBaseUrl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: profile.apiKey.trim().isEmpty
+                        ? const Icon(Icons.key_off_rounded, size: 18)
+                        : null,
+                    onTap: () => Navigator.of(ctx).pop(profile.id),
                   ),
-                  title: Text(profile.name),
-                  subtitle: Text(
-                    profile.normalizedBaseUrl,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: profile.apiKey.trim().isEmpty
-                      ? const Icon(Icons.key_off_rounded, size: 18)
-                      : null,
-                  onTap: () => Navigator.of(ctx).pop(profile.id),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },
