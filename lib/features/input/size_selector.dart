@@ -27,6 +27,7 @@ class SizeSelector extends StatelessWidget {
         if (result != null) {
           onSizeSelected(result.$1, result.$2);
         }
+        if (context.mounted) FocusScope.of(context).unfocus();
       },
       child: Container(
         constraints: const BoxConstraints(minHeight: 28),

@@ -71,5 +71,6 @@ class QualitySelector extends StatelessWidget {
         );
       },
     );
+    if (context.mounted) FocusScope.of(context).unfocus();
   }
 }

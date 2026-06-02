@@ -8,6 +8,7 @@ import '../../core/models/settings_model.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../shared/theme.dart';
+import 'model_name_field.dart';
 
 class PromptOptimizationProfileEditPage extends ConsumerStatefulWidget {
   const PromptOptimizationProfileEditPage({super.key, this.profile});
@@ -28,7 +29,10 @@ class _PromptOptimizationProfileEditPageState
   final TextEditingController _modelController = TextEditingController();
   bool _obscureApiKey = true;
   bool _testingConnection = false;
+  bool _fetchingModels = false;
   CancelToken? _testCancelToken;
+  CancelToken? _modelListCancelToken;
+  List<String> _modelOptions = const [];
   late PromptOptimizationProtocol _protocol;
 
   PromptOptimizationProfile? get _editingProfile => widget.profile;
@@ -54,6 +58,7 @@ class _PromptOptimizationProfileEditPageState
   @override
   void dispose() {
     _testCancelToken?.cancel();
+    _modelListCancelToken?.cancel();
     _baseUrlController.removeListener(_refresh);
     _modelController.removeListener(_refresh);
     _nameController.dispose();
@@ -127,6 +132,7 @@ class _PromptOptimizationProfileEditPageState
                               model == previousProtocol.defaultModel) {
                             _modelController.text = protocol.defaultModel;
                           }
+                          _modelOptions = const [];
                         });
                       },
                     ),
@@ -188,9 +194,11 @@ class _PromptOptimizationProfileEditPageState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    ModelNameField(
                       controller: _modelController,
-                      decoration: const InputDecoration(labelText: '模型名'),
+                      modelOptions: _modelOptions,
+                      fetching: _fetchingModels,
+                      onFetchModels: _fetchModels,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return '请输入模型名';
@@ -297,6 +305,76 @@ class _PromptOptimizationProfileEditPageState
       return;
     }
     Navigator.of(context).pop();
+  }
+
+  Future<void> _fetchModels() async {
+    if (_fetchingModels) {
+      return;
+    }
+
+    final baseUrl = _baseUrlController.text.trim();
+    final apiKey = _apiKeyController.text.trim();
+    if (baseUrl.isEmpty) {
+      _showMessage('请输入 Base URL 后再获取模型列表。');
+      return;
+    }
+    if (apiKey.isEmpty) {
+      _showMessage('请输入 API Key 后再获取模型列表。');
+      return;
+    }
+
+    final cancelToken = CancelToken();
+    _modelListCancelToken = cancelToken;
+    setState(() {
+      _fetchingModels = true;
+    });
+
+    try {
+      final models = await ref
+          .read(modelListApiProvider)
+          .fetchPromptOptimizationModels(
+            profile: PromptOptimizationProfile(
+              id: _editingProfile?.id ?? 'model-list-preview',
+              name: _nameController.text.trim().isEmpty
+                  ? '提示词优化'
+                  : _nameController.text.trim(),
+              baseUrl: baseUrl,
+              apiKey: apiKey,
+              model: _modelController.text.trim().isEmpty
+                  ? _protocol.defaultModel
+                  : _modelController.text.trim(),
+              protocol: _protocol,
+            ),
+            timeoutSeconds: ref.read(settingsProvider).requestTimeoutSeconds,
+            cancelToken: cancelToken,
+          );
+      if (!mounted || cancelToken.isCancelled) {
+        return;
+      }
+
+      setState(() {
+        _modelOptions = models;
+        if (_modelController.text.trim().isEmpty && models.isNotEmpty) {
+          _modelController.text = models.first;
+        }
+      });
+      _showMessage('已获取 ${models.length} 个模型。');
+    } on ApiException catch (error) {
+      if (mounted && !cancelToken.isCancelled) {
+        _showMessage('获取模型列表失败：${error.message}');
+      }
+    } catch (error) {
+      if (mounted && !cancelToken.isCancelled) {
+        _showMessage('获取模型列表失败：$error');
+      }
+    } finally {
+      if (mounted && identical(_modelListCancelToken, cancelToken)) {
+        setState(() {
+          _fetchingModels = false;
+          _modelListCancelToken = null;
+        });
+      }
+    }
   }
 
   Future<void> _testConnection() async {

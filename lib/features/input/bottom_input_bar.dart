@@ -16,6 +16,7 @@ import '../../core/models/settings_model.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/attachment_picker_service.dart';
+import '../../core/services/image_clipboard_service.dart';
 import '../../shared/theme.dart';
 import 'attachment_preview_strip.dart';
 import 'image_format_selector.dart';
@@ -53,6 +54,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
   int _customHeight = 0;
   bool _submitting = false;
   bool _optimizingPrompt = false;
+  bool _pastingFromClipboard = false;
   CancelToken? _optimizationCancelToken;
   List<PickedAttachment> _attachments = const [];
 
@@ -483,8 +485,16 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
       return KeyEventResult.ignored;
     }
 
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.enter) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    if (_isClipboardImagePasteShortcut(event)) {
+      unawaited(_handlePasteShortcut());
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey != LogicalKeyboardKey.enter) {
       return KeyEventResult.ignored;
     }
 
@@ -503,8 +513,32 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
   }
 
+  bool get _supportsClipboardImagePaste {
+    return !kIsWeb && (Platform.isWindows || Platform.isMacOS);
+  }
+
+  bool _isClipboardImagePasteShortcut(KeyDownEvent event) {
+    if (!_supportsClipboardImagePaste ||
+        event.logicalKey != LogicalKeyboardKey.keyV) {
+      return false;
+    }
+
+    final keyboard = HardwareKeyboard.instance;
+    return Platform.isMacOS
+        ? keyboard.isMetaPressed
+        : keyboard.isControlPressed;
+  }
+
   void _insertNewLine() {
     if (_optimizingPrompt) {
+      return;
+    }
+
+    _insertTextAtSelection('\n');
+  }
+
+  void _insertTextAtSelection(String text) {
+    if (_optimizingPrompt || text.isEmpty) {
       return;
     }
 
@@ -512,12 +546,60 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     final selection = value.selection;
     final start = selection.start.clamp(0, value.text.length);
     final end = selection.end.clamp(0, value.text.length);
-    final updatedText = value.text.replaceRange(start, end, '\n');
+    final updatedText = value.text.replaceRange(start, end, text);
 
     _promptController.value = TextEditingValue(
       text: updatedText,
-      selection: TextSelection.collapsed(offset: start + 1),
+      selection: TextSelection.collapsed(offset: start + text.length),
     );
+  }
+
+  Future<void> _handlePasteShortcut() async {
+    if (_pastingFromClipboard || _optimizingPrompt) {
+      return;
+    }
+
+    _pastingFromClipboard = true;
+    try {
+      final imagePath = await const ImageClipboardService()
+          .readImageFileFromClipboard();
+      if (!mounted) {
+        return;
+      }
+
+      if (imagePath != null) {
+        final attachment = await PickedAttachment.fromExistingPath(imagePath);
+        if (!mounted) {
+          return;
+        }
+        if (attachment == null) {
+          _showMessage('剪贴板图片文件不存在，无法加入附件。');
+          return;
+        }
+        if (attachment.sizeBytes > AttachmentPickerService.maxFileSizeBytes) {
+          _showMessage('已忽略 1 张超过 25MB 的剪贴板图片。');
+          return;
+        }
+        _setAttachments([..._attachments, attachment]);
+        return;
+      }
+
+      await _pasteTextFromClipboard();
+    } on ImageClipboardException catch (error) {
+      if (mounted) {
+        _showMessage(error.message);
+      }
+    } finally {
+      _pastingFromClipboard = false;
+    }
+  }
+
+  Future<void> _pasteTextFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted) {
+      return;
+    }
+    _insertTextAtSelection(data?.text ?? '');
   }
 
   Future<void> _pickAttachments() async {
@@ -791,6 +873,12 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     await ref
         .read(settingsProvider.notifier)
         .setActiveProfile(selectedProfileId);
+
+    if (!mounted) {
+      return;
+    }
+    // 切换模型后不自动弹出输入法
+    FocusScope.of(context).unfocus();
   }
 
   Future<void> _handlePromptOptimizationTap() async {

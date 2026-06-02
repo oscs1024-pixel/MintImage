@@ -53,6 +53,7 @@ class QuantitySelector extends StatelessWidget {
     );
     ctrl.dispose();
     if (result != null) onSelected(result);
+    if (context.mounted) FocusScope.of(context).unfocus();
   }
 }
 

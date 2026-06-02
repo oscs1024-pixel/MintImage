@@ -24,6 +24,26 @@ class ImageClipboardService {
     await _channel.invokeMethod<void>('copyImageFile', {'path': path});
   }
 
+  Future<String?> readImageFileFromClipboard() async {
+    if (kIsWeb || (!Platform.isMacOS && !Platform.isWindows)) {
+      return null;
+    }
+
+    try {
+      final result = await _channel.invokeMethod<Object?>('readImageFile');
+      if (result is! Map) {
+        return null;
+      }
+      final path = result['path'];
+      if (path is String && path.trim().isNotEmpty) {
+        return path;
+      }
+      return null;
+    } on PlatformException catch (error) {
+      throw ImageClipboardException(error.message ?? '读取剪贴板图片失败。');
+    }
+  }
+
   Future<Uint8List> _loadEncodedBytes(ImageRecord record) async {
     final localPath = record.resultImagePath ?? record.sourceImagePath;
     if (localPath != null && File(localPath).existsSync()) {

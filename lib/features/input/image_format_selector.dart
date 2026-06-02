@@ -75,5 +75,6 @@ class ImageFormatSelector extends StatelessWidget {
         );
       },
     );
+    if (context.mounted) FocusScope.of(context).unfocus();
   }
 }
