@@ -423,6 +423,7 @@ class SettingsPage extends ConsumerWidget {
         String? errorText;
         var statusIsSuccess = false;
         var testing = false;
+        var passwordVisible = false;
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -447,8 +448,21 @@ class SettingsPage extends ConsumerWidget {
                     const SizedBox(height: 10),
                     TextField(
                       controller: passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(labelText: '密码'),
+                      obscureText: !passwordVisible,
+                      decoration: InputDecoration(
+                        labelText: '密码',
+                        suffixIcon: IconButton(
+                          tooltip: passwordVisible ? '隐藏密码' : '显示密码',
+                          onPressed: () => setState(() {
+                            passwordVisible = !passwordVisible;
+                          }),
+                          icon: Icon(
+                            passwordVisible
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
