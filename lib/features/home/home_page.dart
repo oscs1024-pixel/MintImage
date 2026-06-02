@@ -332,9 +332,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() {
       _attachmentCount = count;
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('已添加到附件$count。')));
   }
 
   void _enterSelectionMode() {

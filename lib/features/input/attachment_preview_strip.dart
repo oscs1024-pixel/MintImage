@@ -27,8 +27,7 @@ class AttachmentPreviewStrip extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
+          Expanded(
             child: SizedBox(
               height: 44,
               child: SingleChildScrollView(
@@ -52,27 +51,7 @@ class AttachmentPreviewStrip extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '已附加 ${attachments.length} 张参考图',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontSize: 13),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '发送后会自动切换为图生图',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppThemeTokens.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(width: 4),
         ],
       ),
     );

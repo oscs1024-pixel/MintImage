@@ -314,7 +314,7 @@ class ImageCell extends ConsumerWidget {
                       onReuseEdit();
                     },
                   ),
-                if (currentAttachmentCount > 0)
+                if (_canAppendCurrentImageToAttachments)
                   ListTile(
                     leading: const Icon(Icons.add_photo_alternate_rounded),
                     title: Text('将此图添加到附件${currentAttachmentCount + 1}'),
@@ -388,6 +388,20 @@ class ImageCell extends ConsumerWidget {
         record.sourceImagePath != null ||
         record.resultB64 != null ||
         record.resultImageUrl != null;
+  }
+
+  bool get _canAppendCurrentImageToAttachments {
+    final resultImagePath = record.resultImagePath;
+    if (resultImagePath != null && File(resultImagePath).existsSync()) {
+      return true;
+    }
+
+    final sourceImagePath = record.sourceImagePath;
+    if (sourceImagePath != null && File(sourceImagePath).existsSync()) {
+      return true;
+    }
+
+    return record.sourceAttachmentPaths.any((path) => File(path).existsSync());
   }
 
   Future<void> _copyImageToClipboard(BuildContext context) async {

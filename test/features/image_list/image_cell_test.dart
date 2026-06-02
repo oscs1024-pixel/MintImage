@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,12 +51,40 @@ void main() {
 
     expect(regenerated, isTrue);
   });
+
+  testWidgets('shows append attachment action when record has a local image', (
+    tester,
+  ) async {
+    var appended = false;
+    await _pumpImageCell(
+      tester,
+      _record.copyWith(
+        status: ImageRecordStatus.done,
+        sourceImagePaths: [File('pubspec.yaml').absolute.path],
+        errorMessage: null,
+        clearErrorMessage: true,
+      ),
+      onAppendCurrentImageToAttachments: () {
+        appended = true;
+      },
+    );
+
+    await tester.longPress(find.byType(ImageCell));
+    await tester.pumpAndSettle();
+
+    expect(find.text('将此图添加到附件1'), findsOneWidget);
+    await tester.tap(find.text('将此图添加到附件1'));
+    await tester.pumpAndSettle();
+
+    expect(appended, isTrue);
+  });
 }
 
 Future<void> _pumpImageCell(
   WidgetTester tester,
   ImageRecord record, {
   VoidCallback? onRegenerate,
+  VoidCallback? onAppendCurrentImageToAttachments,
 }) async {
   SharedPreferences.setMockInitialValues(const {});
   final preferences = await SharedPreferences.getInstance();
@@ -85,7 +115,8 @@ Future<void> _pumpImageCell(
                 selected: false,
                 onSelectionToggle: () {},
                 currentAttachmentCount: 0,
-                onAppendCurrentImageToAttachments: () {},
+                onAppendCurrentImageToAttachments:
+                    onAppendCurrentImageToAttachments ?? () {},
               ),
             ),
           ),
