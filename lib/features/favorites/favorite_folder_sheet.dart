@@ -9,7 +9,6 @@ import '../../core/models/image_record.dart';
 import '../../core/providers/favorite_folders_provider.dart';
 import '../../shared/theme.dart';
 
-const double _folderThumbnailSize = 50;
 
 Future<String?> showFavoriteFolderBrowserSheet(BuildContext context) {
   return showModalBottomSheet<String>(
@@ -354,11 +353,22 @@ class _FolderPreviewStrip extends StatelessWidget {
 
   final List<ImageRecord> records;
 
+  // Thumbnail size and layout constants
+  static const double _thumbSize = 46.0;
+  static const double _step = 29.0; // horizontal offset between cards
+  static const int _maxShow = 4;
+
+  // Per-slot visual properties (index 0 = back, 3 = front)
+  static const _angles = [-0.22, -0.07, 0.07, 0.20]; // radians: ≈ -13°, -4°, +4°, +11°
+  static const _yOffsets = [8.0, 3.0, -1.0, -5.0]; // vertical shift for depth feel
+  static const _shadowAlphas = [0.08, 0.13, 0.19, 0.27];
+  static const _shadowBlurs = [3.0, 5.0, 7.0, 10.0];
+
   @override
   Widget build(BuildContext context) {
     if (records.isEmpty) {
       return SizedBox(
-        height: _folderThumbnailSize,
+        height: _thumbSize,
         child: Align(
           alignment: Alignment.centerRight,
           child: Text(
@@ -372,47 +382,68 @@ class _FolderPreviewStrip extends StatelessWidget {
       );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        for (int index = 0; index < records.length; index++) ...[
-          if (index > 0) const SizedBox(width: 6),
-          _FolderThumbnail(record: records[index]),
+    final count = records.length.clamp(0, _maxShow);
+    // Reserve extra width/height for rotated corners spilling outside the box
+    final totalWidth = _step * (count - 1) + _thumbSize + 16.0;
+    const totalHeight = _thumbSize + 20.0;
+    const baseTop = 7.0;
+
+    return SizedBox(
+      width: totalWidth,
+      height: totalHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Render back-to-front so later items paint on top
+          for (int i = 0; i < count; i++)
+            Positioned(
+              left: i * _step,
+              top: baseTop + _yOffsets[i],
+              child: Transform.rotate(
+                angle: _angles[i],
+                // Rotate from the bottom-center anchor → fan-out effect
+                alignment: Alignment.bottomCenter,
+                child: _buildCard(records[i], i),
+              ),
+            ),
         ],
-      ],
+      ),
     );
   }
-}
 
-class _FolderThumbnail extends StatelessWidget {
-  const _FolderThumbnail({required this.record});
-
-  final ImageRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: SizedBox.square(
-        dimension: _folderThumbnailSize,
+  Widget _buildCard(ImageRecord record, int index) {
+    return Container(
+      width: _thumbSize,
+      height: _thumbSize,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(7),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _shadowAlphas[index]),
+            blurRadius: _shadowBlurs[index],
+            spreadRadius: 0,
+            offset: const Offset(1.0, 2.5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(7),
         child: ColoredBox(
           color: AppThemeTokens.surfaceSoft,
-          child: _buildImage(),
+          child: _buildImage(record),
         ),
       ),
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage(ImageRecord record) {
     final localPath = record.resultImagePath ?? record.sourceImagePath;
     if (localPath != null && File(localPath).existsSync()) {
       return Image.file(
         File(localPath),
         width: double.infinity,
         height: double.infinity,
-        fit: BoxFit.contain,
-        // 只指定一个缓存维度，保持原始宽高比解码，避免被压成方形导致拉伸。
+        fit: BoxFit.cover,
         cacheWidth: 100,
       );
     }
@@ -423,8 +454,7 @@ class _FolderThumbnail extends StatelessWidget {
         imageUrl: url,
         width: double.infinity,
         height: double.infinity,
-        fit: BoxFit.contain,
-        // 只约束宽度，保持原始宽高比，避免被压成方形导致拉伸。
+        fit: BoxFit.cover,
         memCacheWidth: 100,
         maxWidthDiskCache: 100,
         placeholder: (_, _) => const ColoredBox(color: AppThemeTokens.surface),

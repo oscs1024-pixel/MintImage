@@ -1,13 +1,20 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/settings_model.dart';
+import '../../core/providers/app_providers.dart';
+import '../../core/providers/favorite_folders_provider.dart';
 import '../../core/providers/image_list_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/services/backup_service.dart';
+import '../../core/services/webdav_backup_service.dart';
 import '../../core/version/app_version.dart';
 import '../../shared/theme.dart';
 import '../logs/request_log_page.dart';
@@ -47,6 +54,17 @@ class SettingsPage extends ConsumerWidget {
               description: '查看当前进程记录的请求、响应和错误详情。',
               actionLabel: '查看日志',
               onAction: () => _openRequestLogs(context),
+            ),
+            const SizedBox(height: 12),
+            _DataBackupCard(
+              webDavConfig: settings.webDavBackupConfig,
+              onExportToFile: () => _exportBackupToFile(context, ref, settings),
+              onRestoreFromFile: () =>
+                  _restoreBackupFromFile(context, ref, settings),
+              onEditWebDav: () => _editWebDavConfig(context, ref, settings),
+              onSyncToWebDav: () => _syncBackupToWebDav(context, ref, settings),
+              onRestoreFromWebDav: () =>
+                  _restoreBackupFromWebDav(context, ref, settings),
             ),
             const SizedBox(height: 16),
             _SectionTitle(
@@ -292,6 +310,535 @@ class SettingsPage extends ConsumerWidget {
         .setRequestTimeoutSeconds(timeoutSeconds);
   }
 
+  Future<void> _exportBackupToFile(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsModel settings,
+  ) async {
+    final confirmed = await _confirmSensitiveBackup(context, title: '导出备份');
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      final backup = await _runWithProgress<BackupArchiveResult>(
+        context,
+        message: '正在生成备份...',
+        task: () => ref
+            .read(backupServiceProvider)
+            .createBackupArchive(settings: settings),
+      );
+      if (backup == null || !context.mounted) {
+        return;
+      }
+
+      final savedPath = await FilePicker.saveFile(
+        dialogTitle: '导出备份',
+        fileName: backup.fileName,
+        type: FileType.custom,
+        allowedExtensions: const ['mintbackup'],
+        bytes: await backup.file.readAsBytes(),
+        lockParentWindow: true,
+      );
+      if (savedPath == null || !context.mounted) {
+        return;
+      }
+
+      _showSnack(context, '备份已导出：${p.basename(savedPath)}');
+      await _showBackupWarnings(context, backup.warnings);
+    } catch (error) {
+      if (context.mounted) {
+        _showSnack(context, _errorMessage(error));
+      }
+    }
+  }
+
+  Future<void> _restoreBackupFromFile(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsModel settings,
+  ) async {
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: '选择备份文件',
+      type: FileType.custom,
+      allowedExtensions: const ['mintbackup'],
+      withData: true,
+      lockParentWindow: true,
+    );
+    if (picked == null || picked.files.isEmpty || !context.mounted) {
+      return;
+    }
+
+    final backupFile = await _fileFromPickedBackup(picked.files.single);
+    if (!context.mounted) {
+      return;
+    }
+
+    final confirmed = await _confirmRestore(context, source: '文件');
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      final result = await _runWithProgress<BackupRestoreResult>(
+        context,
+        message: '正在恢复备份...',
+        task: () => ref
+            .read(backupServiceProvider)
+            .restoreFromArchive(backupFile, currentSettings: settings),
+      );
+      if (result == null || !context.mounted) {
+        return;
+      }
+      await _applyRestoreResult(context, ref, result);
+    } catch (error) {
+      if (context.mounted) {
+        _showSnack(context, _errorMessage(error));
+      }
+    }
+  }
+
+  Future<void> _editWebDavConfig(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsModel settings,
+  ) async {
+    final current = settings.webDavBackupConfig;
+    final baseUrlController = TextEditingController(
+      text: current?.baseUrl ?? '',
+    );
+    final usernameController = TextEditingController(
+      text: current?.username ?? '',
+    );
+    final passwordController = TextEditingController(
+      text: current?.password ?? '',
+    );
+    final directoryController = TextEditingController(
+      text: current?.remoteDirectory ?? 'MintImage/backups',
+    );
+
+    final config = await showDialog<WebDavBackupConfig>(
+      context: context,
+      builder: (context) {
+        String? errorText;
+        var statusIsSuccess = false;
+        var testing = false;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('WebDAV 设置'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: baseUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'WebDAV 地址',
+                        hintText: 'https://example.com:5244/',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: usernameController,
+                      decoration: const InputDecoration(labelText: '用户名'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(labelText: '密码'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: directoryController,
+                      decoration: const InputDecoration(
+                        labelText: '远端目录',
+                        hintText: 'MintImage/backups',
+                      ),
+                    ),
+                    if (errorText != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        errorText!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: statusIsSuccess
+                              ? AppThemeTokens.primaryStrong
+                              : Colors.red.shade700,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: testing
+                      ? null
+                      : () async {
+                          final baseUrl = baseUrlController.text.trim();
+                          final remoteDirectory = directoryController.text
+                              .trim();
+                          final uri = Uri.tryParse(baseUrl);
+                          if (uri == null ||
+                              !uri.hasScheme ||
+                              uri.host.isEmpty ||
+                              remoteDirectory.isEmpty) {
+                            setState(() {
+                              statusIsSuccess = false;
+                              errorText = '请填写有效的 WebDAV 地址和远端目录。';
+                            });
+                            return;
+                          }
+
+                          setState(() {
+                            testing = true;
+                            statusIsSuccess = false;
+                            errorText = '正在测试连接...';
+                          });
+                          try {
+                            await ref
+                                .read(webDavBackupServiceProvider)
+                                .testConnection(
+                                  WebDavBackupConfig(
+                                    baseUrl: baseUrl,
+                                    username: usernameController.text.trim(),
+                                    password: passwordController.text,
+                                    remoteDirectory: remoteDirectory,
+                                  ),
+                                );
+                            if (!context.mounted) {
+                              return;
+                            }
+                            setState(() {
+                              testing = false;
+                              statusIsSuccess = true;
+                              errorText = '连接成功。';
+                            });
+                          } catch (error) {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            setState(() {
+                              testing = false;
+                              statusIsSuccess = false;
+                              errorText = _errorMessage(error);
+                            });
+                          }
+                        },
+                  child: Text(testing ? '测试中...' : '测试连接'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: testing
+                      ? null
+                      : () {
+                          final baseUrl = baseUrlController.text.trim();
+                          final remoteDirectory = directoryController.text
+                              .trim();
+                          final uri = Uri.tryParse(baseUrl);
+                          if (uri == null ||
+                              !uri.hasScheme ||
+                              uri.host.isEmpty ||
+                              remoteDirectory.isEmpty) {
+                            setState(() {
+                              statusIsSuccess = false;
+                              errorText = '请填写有效的 WebDAV 地址和远端目录。';
+                            });
+                            return;
+                          }
+
+                          Navigator.of(context).pop(
+                            WebDavBackupConfig(
+                              baseUrl: baseUrl,
+                              username: usernameController.text.trim(),
+                              password: passwordController.text,
+                              remoteDirectory: remoteDirectory,
+                            ),
+                          );
+                        },
+                  child: const Text('保存'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    baseUrlController.dispose();
+    usernameController.dispose();
+    passwordController.dispose();
+    directoryController.dispose();
+
+    if (config == null) {
+      return;
+    }
+    await ref.read(settingsProvider.notifier).setWebDavBackupConfig(config);
+  }
+
+  Future<void> _syncBackupToWebDav(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsModel settings,
+  ) async {
+    final config = settings.webDavBackupConfig;
+    if (config == null || !config.isConfigured) {
+      _showSnack(context, '请先配置 WebDAV。');
+      await _editWebDavConfig(context, ref, settings);
+      return;
+    }
+
+    final confirmed = await _confirmSensitiveBackup(
+      context,
+      title: '同步到 WebDAV',
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    var warnings = const <String>[];
+    try {
+      await _runWithProgress<void>(
+        context,
+        message: '正在同步到 WebDAV...',
+        task: () async {
+          final backup = await ref
+              .read(backupServiceProvider)
+              .createBackupArchive(settings: settings);
+          warnings = backup.warnings;
+          await ref
+              .read(webDavBackupServiceProvider)
+              .uploadLatestBackup(backup.file, config);
+        },
+      );
+      if (!context.mounted) {
+        return;
+      }
+      _showSnack(context, '已同步到 WebDAV。');
+      await _showBackupWarnings(context, warnings);
+    } catch (error) {
+      if (context.mounted) {
+        _showSnack(context, _errorMessage(error));
+      }
+    }
+  }
+
+  Future<void> _restoreBackupFromWebDav(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsModel settings,
+  ) async {
+    final config = settings.webDavBackupConfig;
+    if (config == null || !config.isConfigured) {
+      _showSnack(context, '请先配置 WebDAV。');
+      await _editWebDavConfig(context, ref, settings);
+      return;
+    }
+
+    final confirmed = await _confirmRestore(context, source: 'WebDAV');
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      final result = await _runWithProgress<BackupRestoreResult>(
+        context,
+        message: '正在从 WebDAV 恢复...',
+        task: () async {
+          final tempDirectory = await getTemporaryDirectory();
+          final backupFile = await ref
+              .read(webDavBackupServiceProvider)
+              .downloadLatestBackup(config, tempDirectory);
+          return ref
+              .read(backupServiceProvider)
+              .restoreFromArchive(backupFile, currentSettings: settings);
+        },
+      );
+      if (result == null || !context.mounted) {
+        return;
+      }
+      await _applyRestoreResult(context, ref, result);
+    } catch (error) {
+      if (context.mounted) {
+        _showSnack(context, _errorMessage(error));
+      }
+    }
+  }
+
+  Future<File> _fileFromPickedBackup(PlatformFile picked) async {
+    final path = picked.path;
+    if (path != null) {
+      return File(path);
+    }
+
+    final bytes = picked.bytes;
+    if (bytes == null) {
+      throw const BackupException('无法读取备份文件。');
+    }
+
+    final tempDirectory = await getTemporaryDirectory();
+    final file = File(p.join(tempDirectory.path, picked.name));
+    await file.writeAsBytes(bytes, flush: true);
+    return file;
+  }
+
+  Future<void> _applyRestoreResult(
+    BuildContext context,
+    WidgetRef ref,
+    BackupRestoreResult result,
+  ) async {
+    await ref.read(settingsProvider.notifier).replaceWith(result.settings);
+    await ref.read(imageListProvider.notifier).reload();
+    await ref.read(favoriteFoldersProvider.notifier).reload();
+    if (!context.mounted) {
+      return;
+    }
+
+    _showSnack(context, '恢复完成。安全快照：${p.basename(result.safetyBackup.path)}');
+    await _showBackupWarnings(context, result.warnings);
+  }
+
+  Future<bool?> _confirmSensitiveBackup(
+    BuildContext context, {
+    required String title,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: const Text(
+            '备份会包含 API Key、WebDAV 密码等敏感配置。当前版本不会加密备份文件，请确认只保存到可信位置。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('继续'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool?> _confirmRestore(
+    BuildContext context, {
+    required String source,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('从$source恢复'),
+          content: const Text('恢复会替换当前设置、历史记录、收藏夹和应用内图片文件。恢复前会自动生成一份安全快照。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确认恢复'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<T?> _runWithProgress<T>(
+    BuildContext context, {
+    required String message,
+    required Future<T> Function() task,
+  }) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Text(message)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      return await task();
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
+  Future<void> _showBackupWarnings(
+    BuildContext context,
+    List<String> warnings,
+  ) async {
+    if (warnings.isEmpty || !context.mounted) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('备份提示（${warnings.length}）'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Text(warnings.take(20).join('\n')),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _errorMessage(Object error) {
+    if (error is BackupException) {
+      return error.message;
+    }
+    if (error is WebDavBackupException) {
+      return error.message;
+    }
+    return '操作失败：$error';
+  }
+
   Future<void> _openRequestLogs(BuildContext context) async {
     if (_supportsDetachedLogWindow) {
       try {
@@ -382,6 +929,130 @@ class _AppInfoCard extends StatelessWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('无法打开 GitHub 地址。')));
     }
+  }
+}
+
+class _DataBackupCard extends StatelessWidget {
+  const _DataBackupCard({
+    required this.webDavConfig,
+    required this.onExportToFile,
+    required this.onRestoreFromFile,
+    required this.onEditWebDav,
+    required this.onSyncToWebDav,
+    required this.onRestoreFromWebDav,
+  });
+
+  final WebDavBackupConfig? webDavConfig;
+  final VoidCallback onExportToFile;
+  final VoidCallback onRestoreFromFile;
+  final VoidCallback onEditWebDav;
+  final VoidCallback onSyncToWebDav;
+  final VoidCallback onRestoreFromWebDav;
+
+  @override
+  Widget build(BuildContext context) {
+    final configured = webDavConfig?.isConfigured ?? false;
+    final status = configured ? webDavConfig!.remoteDirectory : '未配置';
+
+    return Container(
+      decoration: AppDecorations.card(radius: 22),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppThemeTokens.surfaceSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.cloud_sync_rounded, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '数据备份与恢复',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'WebDAV：$status',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppThemeTokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _BackupActionButton(
+                icon: Icons.upload_file_rounded,
+                label: '导出到文件',
+                onPressed: onExportToFile,
+              ),
+              _BackupActionButton(
+                icon: Icons.restore_page_rounded,
+                label: '从文件恢复',
+                onPressed: onRestoreFromFile,
+              ),
+              _BackupActionButton(
+                icon: Icons.settings_input_component_rounded,
+                label: 'WebDAV 设置',
+                onPressed: onEditWebDav,
+              ),
+              _BackupActionButton(
+                icon: Icons.cloud_upload_rounded,
+                label: '同步到 WebDAV',
+                onPressed: onSyncToWebDav,
+              ),
+              _BackupActionButton(
+                icon: Icons.cloud_download_rounded,
+                label: '从 WebDAV 恢复',
+                onPressed: onRestoreFromWebDav,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BackupActionButton extends StatelessWidget {
+  const _BackupActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      ),
+    );
   }
 }
 

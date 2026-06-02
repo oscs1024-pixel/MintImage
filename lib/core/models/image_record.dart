@@ -158,6 +158,7 @@ class ImageRecord {
     DateTime? createdAt,
     int? durationMs,
     bool clearErrorMessage = false,
+    bool clearSourceImagePath = false,
     bool clearResultImagePath = false,
     bool clearResultImageUrl = false,
     bool clearResultB64 = false,
@@ -169,7 +170,9 @@ class ImageRecord {
       id: id ?? this.id,
       prompt: prompt ?? this.prompt,
       apiProfileId: apiProfileId ?? this.apiProfileId,
-      sourceImagePath: sourceImagePath ?? this.sourceImagePath,
+      sourceImagePath: clearSourceImagePath
+          ? null
+          : sourceImagePath ?? this.sourceImagePath,
       sourceImagePaths: sourceImagePaths ?? this.sourceImagePaths,
       resultImagePath: clearResultImagePath
           ? null

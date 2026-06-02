@@ -160,6 +160,52 @@ class FavoriteFolderDao {
     });
   }
 
+  Future<void> replaceSnapshot(FavoriteFolderSnapshot snapshot) async {
+    await database.delete(database.favoriteFolderItemsTable).go();
+    await database.delete(database.favoriteFoldersTable).go();
+
+    final hasDefaultFolder = snapshot.folders.any(
+      (folder) => folder.id == defaultFavoriteFolderId || folder.isDefault,
+    );
+    final folders = [
+      if (!hasDefaultFolder)
+        FavoriteFolder(
+          id: defaultFavoriteFolderId,
+          title: defaultFavoriteFolderTitle,
+          isDefault: true,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+        ),
+      ...snapshot.folders,
+    ];
+
+    await database.batch((batch) {
+      batch.insertAll(
+        database.favoriteFoldersTable,
+        folders.map(
+          (folder) => FavoriteFoldersTableCompanion.insert(
+            id: folder.id,
+            title: folder.title,
+            isDefault: Value(folder.isDefault),
+            createdAt: folder.createdAt,
+          ),
+        ),
+      );
+      if (snapshot.memberships.isNotEmpty) {
+        batch.insertAll(
+          database.favoriteFolderItemsTable,
+          snapshot.memberships.map(
+            (membership) => FavoriteFolderItemsTableCompanion.insert(
+              folderId: membership.folderId,
+              recordId: membership.recordId,
+              createdAt: membership.createdAt,
+            ),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+      }
+    });
+  }
+
   Future<void> setRecordFavoriteFlags(Map<String, bool> flags) async {
     if (flags.isEmpty) {
       return;

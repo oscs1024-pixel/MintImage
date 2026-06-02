@@ -47,6 +47,20 @@ class ImageRecordDao {
     await database.delete(database.imageRecordsTable).go();
   }
 
+  Future<void> replaceAll(List<ImageRecord> records) async {
+    await database.delete(database.imageRecordsTable).go();
+    if (records.isEmpty) {
+      return;
+    }
+
+    await database.batch((batch) {
+      batch.insertAll(
+        database.imageRecordsTable,
+        records.map(_toCompanion).toList(),
+      );
+    });
+  }
+
   ImageRecord _toModel(ImageRecordsTableData row) {
     return ImageRecord(
       id: row.id,

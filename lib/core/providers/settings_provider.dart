@@ -38,6 +38,11 @@ class SettingsController extends StateNotifier<SettingsModel> {
     }
   }
 
+  Future<void> replaceWith(SettingsModel settings) async {
+    state = settings;
+    await _persist();
+  }
+
   Future<ApiProfile> addProfile({
     String? name,
     String? baseUrl,
@@ -195,6 +200,16 @@ class SettingsController extends StateNotifier<SettingsModel> {
       return;
     }
     state = state.copyWith(previewInfoCollapsed: collapsed);
+    await _persist();
+  }
+
+  Future<void> setWebDavBackupConfig(WebDavBackupConfig config) async {
+    state = state.copyWith(webDavBackupConfig: config);
+    await _persist();
+  }
+
+  Future<void> clearWebDavBackupConfig() async {
+    state = state.copyWith(clearWebDavBackupConfig: true);
     await _persist();
   }
 

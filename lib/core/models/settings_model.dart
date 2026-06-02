@@ -243,6 +243,57 @@ class PromptOptimizationProfile {
   }
 }
 
+class WebDavBackupConfig {
+  const WebDavBackupConfig({
+    required this.baseUrl,
+    required this.username,
+    required this.password,
+    required this.remoteDirectory,
+  });
+
+  factory WebDavBackupConfig.fromJson(Map<String, dynamic> json) {
+    return WebDavBackupConfig(
+      baseUrl: json['baseUrl'] as String? ?? '',
+      username: json['username'] as String? ?? '',
+      password: json['password'] as String? ?? '',
+      remoteDirectory:
+          json['remoteDirectory'] as String? ?? 'MintImage/backups',
+    );
+  }
+
+  final String baseUrl;
+  final String username;
+  final String password;
+  final String remoteDirectory;
+
+  bool get isConfigured {
+    return baseUrl.trim().isNotEmpty && remoteDirectory.trim().isNotEmpty;
+  }
+
+  WebDavBackupConfig copyWith({
+    String? baseUrl,
+    String? username,
+    String? password,
+    String? remoteDirectory,
+  }) {
+    return WebDavBackupConfig(
+      baseUrl: baseUrl ?? this.baseUrl,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      remoteDirectory: remoteDirectory ?? this.remoteDirectory,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'baseUrl': baseUrl,
+      'username': username,
+      'password': password,
+      'remoteDirectory': remoteDirectory,
+    };
+  }
+}
+
 class SettingsModel {
   static const int defaultRequestTimeoutSeconds = 600;
 
@@ -259,6 +310,7 @@ class SettingsModel {
     this.lastQuality = ImageQuality.auto,
     this.lastOutputFormat = ImageOutputFormat.png,
     this.previewInfoCollapsed = false,
+    this.webDavBackupConfig,
   });
 
   factory SettingsModel.initial() {
@@ -275,6 +327,7 @@ class SettingsModel {
       lastCustomHeight: 0,
       lastQuality: ImageQuality.auto,
       lastOutputFormat: ImageOutputFormat.png,
+      webDavBackupConfig: null,
     );
   }
 
@@ -338,6 +391,9 @@ class SettingsModel {
       lastQuality: _normalizeImageQuality(json['lastQuality']),
       lastOutputFormat: _normalizeImageOutputFormat(json['lastOutputFormat']),
       previewInfoCollapsed: _normalizeBool(json['previewInfoCollapsed']),
+      webDavBackupConfig: _normalizeWebDavBackupConfig(
+        json['webDavBackupConfig'],
+      ),
     );
   }
 
@@ -353,6 +409,7 @@ class SettingsModel {
   final ImageQuality lastQuality;
   final ImageOutputFormat lastOutputFormat;
   final bool previewInfoCollapsed;
+  final WebDavBackupConfig? webDavBackupConfig;
 
   ApiProfile get activeProfile {
     return profiles.firstWhere(
@@ -413,6 +470,8 @@ class SettingsModel {
     ImageQuality? lastQuality,
     ImageOutputFormat? lastOutputFormat,
     bool? previewInfoCollapsed,
+    WebDavBackupConfig? webDavBackupConfig,
+    bool clearWebDavBackupConfig = false,
   }) {
     return SettingsModel(
       profiles: profiles ?? this.profiles,
@@ -434,6 +493,9 @@ class SettingsModel {
       lastQuality: lastQuality ?? this.lastQuality,
       lastOutputFormat: lastOutputFormat ?? this.lastOutputFormat,
       previewInfoCollapsed: previewInfoCollapsed ?? this.previewInfoCollapsed,
+      webDavBackupConfig: clearWebDavBackupConfig
+          ? null
+          : webDavBackupConfig ?? this.webDavBackupConfig,
     );
   }
 
@@ -453,6 +515,7 @@ class SettingsModel {
       'lastQuality': lastQuality.apiValue,
       'lastOutputFormat': lastOutputFormat.apiValue,
       'previewInfoCollapsed': previewInfoCollapsed,
+      'webDavBackupConfig': webDavBackupConfig?.toJson(),
     };
   }
 
@@ -542,6 +605,17 @@ class SettingsModel {
       num value => value != 0,
       _ => fallback,
     };
+  }
+
+  static WebDavBackupConfig? _normalizeWebDavBackupConfig(Object? rawValue) {
+    if (rawValue is! Map) {
+      return null;
+    }
+
+    final config = WebDavBackupConfig.fromJson(
+      Map<String, dynamic>.from(rawValue),
+    );
+    return config.isConfigured ? config : null;
   }
 
   static int _fallbackWidthForPreset(SizePreset preset) {

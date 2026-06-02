@@ -9,12 +9,14 @@ import '../database/favorite_folder_dao.dart';
 import '../database/image_record_dao.dart';
 import '../models/image_record.dart';
 import '../models/settings_model.dart';
-import '../services/background_generation_service.dart';
 import '../services/attachment_picker_service.dart';
+import '../services/backup_service.dart';
+import '../services/background_generation_service.dart';
 import '../services/image_save_service.dart';
 import '../services/image_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/request_log_service.dart';
+import '../services/webdav_backup_service.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError('sharedPreferencesProvider not overridden'),
@@ -70,6 +72,19 @@ final backgroundGenerationServiceProvider =
 
 final attachmentPickerServiceProvider = Provider<AttachmentPickerService>(
   (ref) => AttachmentPickerService(),
+);
+
+final backupServiceProvider = Provider<BackupService>(
+  (ref) => BackupService(
+    database: ref.watch(appDatabaseProvider),
+    imageRecordDao: ref.watch(imageRecordDaoProvider),
+    favoriteFolderDao: ref.watch(favoriteFolderDaoProvider),
+    requestLogService: ref.watch(requestLogServiceProvider),
+  ),
+);
+
+final webDavBackupServiceProvider = Provider<WebDavBackupService>(
+  (ref) => WebDavBackupService(),
 );
 
 final initialSettingsModelProvider = Provider<SettingsModel>(

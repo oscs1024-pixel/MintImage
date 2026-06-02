@@ -9,7 +9,7 @@ import 'app_providers.dart';
 import 'image_list_provider.dart';
 
 const _uuid = Uuid();
-const _maxPreviewRecords = 3;
+const _maxPreviewRecords = 4;
 
 final favoriteFoldersProvider =
     StateNotifierProvider<FavoriteFolderController, FavoriteFoldersState>((
@@ -82,6 +82,13 @@ class FavoriteFolderController extends StateNotifier<FavoriteFoldersState> {
   late List<FavoriteFolderMembership> _memberships;
 
   FavoriteFolderDao get _dao => _ref.read(favoriteFolderDaoProvider);
+
+  Future<void> reload() async {
+    final snapshot = await _dao.loadSnapshot();
+    _folders = snapshot.folders;
+    _memberships = snapshot.memberships;
+    _rebuildState();
+  }
 
   Future<bool> createFolder(String rawTitle) async {
     final title = rawTitle.trim();

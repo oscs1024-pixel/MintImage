@@ -54,6 +54,24 @@ void main() {
     expect(decoded.lastOutputFormat, ImageOutputFormat.webp);
   });
 
+  test('settings round-trip preserves WebDAV backup config', () {
+    final settings = SettingsModel.initial().copyWith(
+      webDavBackupConfig: const WebDavBackupConfig(
+        baseUrl: 'https://example.com/dav',
+        username: 'user',
+        password: 'pass',
+        remoteDirectory: 'MintImage/backups',
+      ),
+    );
+
+    final decoded = SettingsModel.decode(settings.encode());
+
+    expect(decoded.webDavBackupConfig?.baseUrl, 'https://example.com/dav');
+    expect(decoded.webDavBackupConfig?.username, 'user');
+    expect(decoded.webDavBackupConfig?.password, 'pass');
+    expect(decoded.webDavBackupConfig?.remoteDirectory, 'MintImage/backups');
+  });
+
   test('legacy settings default to no prompt optimization profiles', () {
     final decoded = SettingsModel.fromJson({
       'profiles': [
