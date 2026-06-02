@@ -60,6 +60,16 @@ jobs:
           echo "BUILD_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
+      - name: Restore Android signing
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/mint_image_release.jks
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=mint_image_release.jks
+          EOF
+
       - run: flutter pub get
       - run: flutter build apk --release --build-name "$BUILD_NAME" --build-number "$BUILD_NUMBER" --dart-define "APP_VERSION=$APP_VERSION"
 
