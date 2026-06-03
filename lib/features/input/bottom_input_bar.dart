@@ -499,7 +499,9 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     }
 
     final keyboard = HardwareKeyboard.instance;
-    if (keyboard.isControlPressed || keyboard.isMetaPressed) {
+    if (keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isShiftPressed) {
       _insertNewLine();
       return KeyEventResult.handled;
     }

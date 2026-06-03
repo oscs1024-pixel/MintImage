@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -102,6 +103,29 @@ void main() {
     expect(submittedRequest!.customHeight, 1024);
     expect(submittedRequest!.quality, ImageQuality.high);
     expect(submittedRequest!.outputFormat, ImageOutputFormat.webp);
+  });
+
+  testWidgets('shift enter inserts newline without submitting', (tester) async {
+    GenerationRequest? submittedRequest;
+    await _pumpInputBar(
+      tester,
+      onSubmit: (request) async {
+        submittedRequest = request;
+      },
+    );
+
+    final inputFinder = find.byKey(const Key('prompt-input'));
+    await tester.tap(inputFinder);
+    await tester.enterText(inputFinder, '第一行');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+
+    final input = tester.widget<TextField>(inputFinder);
+    expect(input.controller!.text, '第一行\n');
+    expect(submittedRequest, isNull);
   });
 
   testWidgets('prefill from record reuses size quality and format', (
