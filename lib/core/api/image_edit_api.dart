@@ -31,28 +31,35 @@ class ImageEditApi {
     );
 
     if (profile.apiMode == ImageGenerationApiMode.responses) {
-      final response = await client.postJson(
-        '/v1/responses',
-        buildResponsesImageBody(
-          request: request,
-          profile: profile,
-          input: [
-            {
-              'role': 'user',
-              'content': [
-                {'type': 'input_text', 'text': request.prompt},
-                for (final path in request.imagePaths)
-                  {
-                    'type': 'input_image',
-                    'image_url': await imagePathToDataUrl(path),
-                  },
-              ],
-            },
-          ],
-          action: 'edit',
-        ),
-        cancelToken: cancelToken,
+      final body = buildResponsesImageBody(
+        request: request,
+        profile: profile,
+        input: [
+          {
+            'role': 'user',
+            'content': [
+              {'type': 'input_text', 'text': request.prompt},
+              for (final path in request.imagePaths)
+                {
+                  'type': 'input_image',
+                  'image_url': await imagePathToDataUrl(path),
+                },
+            ],
+          },
+        ],
+        action: 'edit',
       );
+      final response = profile.useStreaming
+          ? await client.postJsonStreaming(
+              '/v1/responses',
+              body,
+              cancelToken: cancelToken,
+            )
+          : await client.postJson(
+              '/v1/responses',
+              body,
+              cancelToken: cancelToken,
+            );
       return parseResponsesImageResults(response);
     }
 
@@ -82,11 +89,17 @@ class ImageEditApi {
       );
     }
 
-    final response = await client.postMultipart(
-      '/v1/images/edits',
-      formData,
-      cancelToken: cancelToken,
-    );
+    final response = profile.useStreaming
+        ? await client.postMultipartStreaming(
+            '/v1/images/edits',
+            formData,
+            cancelToken: cancelToken,
+          )
+        : await client.postMultipart(
+            '/v1/images/edits',
+            formData,
+            cancelToken: cancelToken,
+          );
 
     return _parseResults(response);
   }

@@ -440,6 +440,26 @@ bool FlutterWindow::OnCreate() {
       [this](const auto& call, auto result) {
         HandleImageClipboardMethod(GetHandle(), call, std::move(result));
       });
+  window_lifecycle_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "mint_image/window_lifecycle",
+          &flutter::StandardMethodCodec::GetInstance());
+  window_lifecycle_channel_->SetMethodCallHandler(
+      [this](const auto& call, auto result) {
+        if (call.method_name() == "performClose") {
+          // Dart confirmed the exit; destroy the window directly so we bypass
+          // the engine's (unreliable) close handling and our own interception.
+          force_close_ = true;
+          close_request_in_flight_ = false;
+          result->Success();
+          if (HWND handle = GetHandle()) {
+            DestroyWindow(handle);
+          }
+          return;
+        }
+        result->NotImplemented();
+      });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -456,6 +476,7 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   image_clipboard_channel_ = nullptr;
+  window_lifecycle_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -467,6 +488,62 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Track system shutdown / logoff. Once a session end is underway we must not
+  // intercept the close below; blocking it would stall shutdown and surface
+  // Windows' "this app is preventing shutdown" screen. We don't return here so
+  // the engine and DefWindowProc can run their default (shutdown-allowing)
+  // handling.
+  if (message == WM_QUERYENDSESSION) {
+    session_ending_ = true;
+  } else if (message == WM_ENDSESSION && wparam == FALSE) {
+    // A previously announced session end was cancelled; resume normal close
+    // interception.
+    session_ending_ = false;
+  }
+
+  // Intercept the window close request before the Flutter engine's own
+  // lifecycle handling, which is unreliable on Windows (it only forwards the
+  // request when this is the sole top-level window of the process). Ask Dart
+  // whether it's safe to close; Dart will call back "performClose" once the
+  // user confirms. During a system shutdown we skip this entirely and let the
+  // window close so we never block the OS.
+  if (message == WM_CLOSE && !force_close_ && !session_ending_) {
+    if (window_lifecycle_channel_ && !close_request_in_flight_) {
+      close_request_in_flight_ = true;
+      window_lifecycle_channel_->InvokeMethod(
+          "onCloseRequested", nullptr,
+          std::make_unique<flutter::MethodResultFunctions<
+              flutter::EncodableValue>>(
+              [this](const flutter::EncodableValue* response) {
+                // Dart returns true when it allows an immediate close (e.g.
+                // nothing is generating). false means it will drive the close
+                // itself via "performClose".
+                close_request_in_flight_ = false;
+                const bool allow =
+                    response && std::holds_alternative<bool>(*response) &&
+                    std::get<bool>(*response);
+                if (allow) {
+                  force_close_ = true;
+                  if (HWND handle = GetHandle()) {
+                    DestroyWindow(handle);
+                  }
+                }
+              },
+              [this](const std::string&, const std::string&,
+                     const flutter::EncodableValue*) {
+                // On error, fall back to closing so the window can't get stuck.
+                close_request_in_flight_ = false;
+                force_close_ = true;
+                if (HWND handle = GetHandle()) {
+                  DestroyWindow(handle);
+                }
+              },
+              [this]() { close_request_in_flight_ = false; }));
+    }
+    // Swallow this close request; the real close happens after Dart responds.
+    return 0;
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

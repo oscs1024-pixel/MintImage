@@ -130,6 +130,66 @@ void main() {
       expect(results.single.imageUrl, 'https://example.com/image.png');
     });
 
+    test(
+      'streams Images API edit request and parses final image event',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('gpt-edit-api');
+        addTearDown(() => tempDir.delete(recursive: true));
+
+        final first = await File(
+          p.join(tempDir.path, 'first.png'),
+        ).writeAsString('fake-png-a');
+        final finalImage = base64Encode(<int>[6, 6, 6, 6]);
+
+        final server = await _startServer((request) async {
+          expect(request.method, 'POST');
+          expect(request.uri.path, '/v1/images/edits');
+          expect(
+            request.headers.contentType?.mimeType,
+            contains('multipart/form-data'),
+          );
+
+          final bytes = await _collectBytes(request);
+          final payload = utf8.decode(bytes, allowMalformed: true);
+          expect(payload, contains('name="stream"'));
+          expect(payload, contains('true'));
+          expect(payload, contains('name="partial_images"'));
+          expect(payload, contains('0'));
+
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+          );
+          request.response.write(
+            'data: ${jsonEncode({'type': 'image_edit.completed', 'b64_json': finalImage})}\n\n'
+            'data: [DONE]\n\n',
+          );
+          await request.response.close();
+        });
+        addTearDown(server.close);
+
+        final api = const ImageEditApi();
+        final request = GenerationRequest(
+          prompt: 'turn this into a watercolor poster',
+          imagePaths: [first.path],
+          sizePreset: SizePreset.posterLandscape,
+          customWidth: 1536,
+          customHeight: 1024,
+          quality: ImageQuality.medium,
+          count: 1,
+          apiProfileId: 'default',
+        );
+
+        final results = await api.edit(
+          request,
+          _profileFor(server, useStreaming: true),
+          timeoutSeconds: 600,
+        );
+
+        expect(results.single.b64Json, finalImage);
+      },
+    );
+
     test('uses Responses API mode with input image data URLs', () async {
       final tempDir = await Directory.systemTemp.createTemp('gpt-edit-api');
       addTearDown(() => tempDir.delete(recursive: true));
@@ -242,6 +302,7 @@ ApiProfile _profileFor(
   HttpServer server, {
   String model = 'gpt-image-2',
   ImageGenerationApiMode apiMode = ImageGenerationApiMode.images,
+  bool useStreaming = false,
 }) {
   return ApiProfile(
     id: 'default',
@@ -250,5 +311,6 @@ ApiProfile _profileFor(
     apiKey: 'test-key',
     model: model,
     apiMode: apiMode,
+    useStreaming: useStreaming,
   );
 }

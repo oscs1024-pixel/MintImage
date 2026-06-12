@@ -1,7 +1,17 @@
 import Cocoa
 import FlutterMacOS
 
-class MainFlutterWindow: NSWindow {
+class MainFlutterWindow: NSWindow, NSWindowDelegate {
+  private var windowLifecycleChannel: FlutterMethodChannel?
+
+  // When true, the next close is allowed to proceed without asking Dart.
+  // Set after Dart confirms the user wants to exit via "performClose".
+  private var forceClose = false
+
+  // True while an "onCloseRequested" round-trip to Dart is in flight, so we
+  // don't spam the framework with duplicate requests on repeated clicks.
+  private var closeRequestInFlight = false
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -10,8 +20,65 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerImageClipboardChannel(flutterViewController: flutterViewController)
+    registerWindowLifecycleChannel(flutterViewController: flutterViewController)
+
+    self.delegate = self
 
     super.awakeFromNib()
+  }
+
+  // MARK: - Window lifecycle interception
+
+  private func registerWindowLifecycleChannel(flutterViewController: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "mint_image/window_lifecycle",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+
+      if call.method == "performClose" {
+        // Dart confirmed the exit; close the window directly, bypassing our
+        // own interception.
+        self.forceClose = true
+        self.closeRequestInFlight = false
+        result(nil)
+        self.close()
+        return
+      }
+
+      result(FlutterMethodNotImplemented)
+    }
+
+    windowLifecycleChannel = channel
+  }
+
+  func windowShouldClose(_ sender: NSWindow) -> Bool {
+    if forceClose {
+      return true
+    }
+
+    // Ask Dart whether it's safe to close. Dart returns true to allow an
+    // immediate close, or false to drive the close itself via "performClose"
+    // after the user confirms.
+    if let channel = windowLifecycleChannel, !closeRequestInFlight {
+      closeRequestInFlight = true
+      channel.invokeMethod("onCloseRequested", arguments: nil) { [weak self] response in
+        guard let self = self else { return }
+        self.closeRequestInFlight = false
+        let allow = (response as? Bool) ?? true
+        if allow {
+          self.forceClose = true
+          self.close()
+        }
+      }
+    }
+
+    // Block this close; the real close happens after Dart responds.
+    return false
   }
 
   private func registerImageClipboardChannel(flutterViewController: FlutterViewController) {

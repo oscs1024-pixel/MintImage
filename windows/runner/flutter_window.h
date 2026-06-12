@@ -33,6 +33,23 @@ class FlutterWindow : public Win32Window {
 
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       image_clipboard_channel_;
+
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      window_lifecycle_channel_;
+
+  // When true, the next WM_CLOSE is allowed to proceed without asking Dart.
+  // Set after Dart confirms the user wants to exit via "performClose".
+  bool force_close_ = false;
+
+  // True while an "onCloseRequested" round-trip to Dart is in flight, so we
+  // don't spam the framework with duplicate requests on repeated clicks.
+  bool close_request_in_flight_ = false;
+
+  // True once the system has initiated a shutdown / logoff
+  // (WM_QUERYENDSESSION). During a session end we must never block by showing
+  // a confirmation dialog, otherwise the app stalls the shutdown and triggers
+  // Windows' "this app is preventing shutdown" UI.
+  bool session_ending_ = false;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

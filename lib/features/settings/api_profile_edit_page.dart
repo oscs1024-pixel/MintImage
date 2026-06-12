@@ -26,6 +26,7 @@ class _ApiProfileEditPageState extends ConsumerState<ApiProfileEditPage> {
   final TextEditingController _modelController = TextEditingController();
   bool _obscureApiKey = true;
   bool _fetchingModels = false;
+  bool _useStreaming = false;
   CancelToken? _modelListCancelToken;
   List<String> _modelOptions = const [];
   late ImageGenerationApiMode _apiMode;
@@ -41,6 +42,7 @@ class _ApiProfileEditPageState extends ConsumerState<ApiProfileEditPage> {
     _nameController.text =
         profile?.name ?? '配置 ${settings.profiles.length + 1}';
     _apiMode = profile?.apiMode ?? ImageGenerationApiMode.images;
+    _useStreaming = profile?.useStreaming ?? false;
     _baseUrlController.text = profile?.baseUrl ?? 'https://api.openai.com';
     _apiKeyController.text = profile?.apiKey ?? '';
     _modelController.text = profile?.model ?? _apiMode.defaultModel;
@@ -186,6 +188,16 @@ class _ApiProfileEditPageState extends ConsumerState<ApiProfileEditPage> {
                         });
                       },
                     ),
+                    const SizedBox(height: 4),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('流式请求'),
+                      subtitle: const Text(
+                        '启用后发送 stream: true，可降低超时风险',
+                      ),
+                      value: _useStreaming,
+                      onChanged: (v) => setState(() => _useStreaming = v),
+                    ),
                     const SizedBox(height: 14),
                     ModelNameField(
                       controller: _modelController,
@@ -226,6 +238,7 @@ class _ApiProfileEditPageState extends ConsumerState<ApiProfileEditPage> {
         apiKey: _apiKeyController.text.trim(),
         model: _modelController.text.trim(),
         apiMode: _apiMode,
+        useStreaming: _useStreaming,
       );
       await notifier.setActiveProfile(created.id);
     } else {
@@ -236,6 +249,7 @@ class _ApiProfileEditPageState extends ConsumerState<ApiProfileEditPage> {
           apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
           apiMode: _apiMode,
+          useStreaming: _useStreaming,
         ),
       );
     }

@@ -51,6 +51,7 @@ class ApiProfile {
     required this.apiKey,
     required this.model,
     this.apiMode = ImageGenerationApiMode.images,
+    this.useStreaming = false,
   });
 
   factory ApiProfile.initial() {
@@ -80,6 +81,7 @@ class ApiProfile {
       apiKey: json['apiKey'] as String? ?? '',
       model: json['model'] as String? ?? apiMode.defaultModel,
       apiMode: apiMode,
+      useStreaming: json['useStreaming'] as bool? ?? false,
     );
   }
 
@@ -89,6 +91,7 @@ class ApiProfile {
   final String apiKey;
   final String model;
   final ImageGenerationApiMode apiMode;
+  final bool useStreaming;
 
   String get normalizedBaseUrl => baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
 
@@ -109,6 +112,7 @@ class ApiProfile {
     String? apiKey,
     String? model,
     ImageGenerationApiMode? apiMode,
+    bool? useStreaming,
   }) {
     return ApiProfile(
       id: id ?? this.id,
@@ -117,6 +121,7 @@ class ApiProfile {
       apiKey: apiKey ?? this.apiKey,
       model: model ?? this.model,
       apiMode: apiMode ?? this.apiMode,
+      useStreaming: useStreaming ?? this.useStreaming,
     );
   }
 
@@ -128,6 +133,7 @@ class ApiProfile {
       'apiKey': apiKey,
       'model': model,
       'apiMode': apiMode.storageValue,
+      'useStreaming': useStreaming,
     };
   }
 }

@@ -49,6 +49,7 @@ class SettingsController extends StateNotifier<SettingsModel> {
     String? apiKey,
     String? model,
     ImageGenerationApiMode apiMode = ImageGenerationApiMode.images,
+    bool useStreaming = false,
   }) async {
     final nextIndex = state.profiles.length + 1;
     final profile = ApiProfile(
@@ -58,6 +59,7 @@ class SettingsController extends StateNotifier<SettingsModel> {
       apiKey: apiKey ?? '',
       model: model ?? apiMode.defaultModel,
       apiMode: apiMode,
+      useStreaming: useStreaming,
     );
     state = state.copyWith(
       profiles: [...state.profiles, profile],

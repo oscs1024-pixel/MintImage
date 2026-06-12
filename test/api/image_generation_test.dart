@@ -233,6 +233,159 @@ void main() {
         expect(results.single.rawResponseValue, responseImage);
       },
     );
+
+    test('streams Images API generation and parses final image event', () async {
+      final partialImage = base64Encode(<int>[1, 1, 1, 1]);
+      final finalImage = base64Encode(<int>[2, 2, 2, 2]);
+      final server = await _startServer((request) async {
+        expect(request.method, 'POST');
+        expect(request.uri.path, '/v1/images/generations');
+
+        final body =
+            jsonDecode(await utf8.decoder.bind(request).join())
+                as Map<String, dynamic>;
+        expect(body['stream'], isTrue);
+        expect(body['partial_images'], 0);
+
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.write(
+          'data: ${jsonEncode({'type': 'image_generation.partial_image', 'b64_json': partialImage})}\n\n'
+          'data: ${jsonEncode({'type': 'image_generation.completed', 'b64_json': finalImage})}\n\n'
+          'data: [DONE]\n\n',
+        );
+        await request.response.close();
+      });
+      addTearDown(server.close);
+
+      final api = const ImageGenerationApi();
+      final request = GenerationRequest(
+        prompt: 'a red apple on white background',
+        imagePaths: const [],
+        sizePreset: SizePreset.square1k,
+        customWidth: 1024,
+        customHeight: 1024,
+        quality: ImageQuality.low,
+        count: 1,
+        apiProfileId: 'default',
+      );
+
+      final results = await api.generate(
+        request,
+        _profileFor(server, useStreaming: true),
+        timeoutSeconds: 600,
+      );
+
+      expect(results, hasLength(1));
+      expect(results.single.b64Json, finalImage);
+      expect(results.single.rawResponseValue, finalImage);
+    });
+
+    test('streams Responses API image tool output_item.done result', () async {
+      final responseImage = base64Encode(<int>[7, 7, 7, 7]);
+      final server = await _startServer((request) async {
+        expect(request.method, 'POST');
+        expect(request.uri.path, '/v1/responses');
+
+        final body =
+            jsonDecode(await utf8.decoder.bind(request).join())
+                as Map<String, dynamic>;
+        expect(body['stream'], isTrue);
+
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.write(
+          'data: ${jsonEncode({
+            'type': 'response.output_item.done',
+            'item': {
+              'type': 'image_generation_call',
+              'result': {'b64_json': responseImage},
+            },
+          })}\n\n'
+          'data: [DONE]\n\n',
+        );
+        await request.response.close();
+      });
+      addTearDown(server.close);
+
+      final api = const ImageGenerationApi();
+      final request = GenerationRequest(
+        prompt: 'a red apple on white background',
+        imagePaths: const [],
+        sizePreset: SizePreset.square1k,
+        customWidth: 1024,
+        customHeight: 1024,
+        quality: ImageQuality.low,
+        count: 1,
+        apiProfileId: 'default',
+      );
+
+      final results = await api.generate(
+        request,
+        _profileFor(
+          server,
+          model: 'gpt-5.5',
+          apiMode: ImageGenerationApiMode.responses,
+          useStreaming: true,
+        ),
+        timeoutSeconds: 600,
+      );
+
+      expect(results, hasLength(1));
+      expect(results.single.b64Json, responseImage);
+    });
+
+    test('streams Responses API image partial event as fallback', () async {
+      final responseImage = base64Encode(<int>[8, 8, 8, 8]);
+      final server = await _startServer((request) async {
+        expect(request.uri.path, '/v1/responses');
+
+        final body =
+            jsonDecode(await utf8.decoder.bind(request).join())
+                as Map<String, dynamic>;
+        expect(body['stream'], isTrue);
+
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.write(
+          'data: ${jsonEncode({'type': 'response.image_generation_call.partial_image', 'b64_json': responseImage})}\n\n'
+          'data: [DONE]\n\n',
+        );
+        await request.response.close();
+      });
+      addTearDown(server.close);
+
+      final api = const ImageGenerationApi();
+      final request = GenerationRequest(
+        prompt: 'a red apple on white background',
+        imagePaths: const [],
+        sizePreset: SizePreset.square1k,
+        customWidth: 1024,
+        customHeight: 1024,
+        quality: ImageQuality.low,
+        count: 1,
+        apiProfileId: 'default',
+      );
+
+      final results = await api.generate(
+        request,
+        _profileFor(
+          server,
+          model: 'gpt-5.5',
+          apiMode: ImageGenerationApiMode.responses,
+          useStreaming: true,
+        ),
+        timeoutSeconds: 600,
+      );
+
+      expect(results.single.b64Json, responseImage);
+    });
   });
 }
 
@@ -252,6 +405,7 @@ ApiProfile _profileFor(
   HttpServer server, {
   String model = 'gpt-image-2',
   ImageGenerationApiMode apiMode = ImageGenerationApiMode.images,
+  bool useStreaming = false,
 }) {
   return ApiProfile(
     id: 'default',
@@ -260,5 +414,6 @@ ApiProfile _profileFor(
     apiKey: 'test-key',
     model: model,
     apiMode: apiMode,
+    useStreaming: useStreaming,
   );
 }

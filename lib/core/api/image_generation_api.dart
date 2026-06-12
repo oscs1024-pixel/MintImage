@@ -26,16 +26,23 @@ class ImageGenerationApi {
     );
 
     if (profile.apiMode == ImageGenerationApiMode.responses) {
-      final response = await client.postJson(
-        '/v1/responses',
-        buildResponsesImageBody(
-          request: request,
-          profile: profile,
-          input: request.prompt,
-          action: 'generate',
-        ),
-        cancelToken: cancelToken,
+      final body = buildResponsesImageBody(
+        request: request,
+        profile: profile,
+        input: request.prompt,
+        action: 'generate',
       );
+      final response = profile.useStreaming
+          ? await client.postJsonStreaming(
+              '/v1/responses',
+              body,
+              cancelToken: cancelToken,
+            )
+          : await client.postJson(
+              '/v1/responses',
+              body,
+              cancelToken: cancelToken,
+            );
       return parseResponsesImageResults(response);
     }
 
@@ -53,11 +60,18 @@ class ImageGenerationApi {
       body['response_format'] = responseFormat;
     }
 
-    final response = await client.postJson(
-      '/v1/images/generations',
-      body,
-      cancelToken: cancelToken,
-    );
+    final response = profile.useStreaming
+        ? await client.postJsonStreaming(
+            '/v1/images/generations',
+            body,
+            cancelToken: cancelToken,
+            isImagesApi: true,
+          )
+        : await client.postJson(
+            '/v1/images/generations',
+            body,
+            cancelToken: cancelToken,
+          );
 
     return _parseResults(response);
   }
