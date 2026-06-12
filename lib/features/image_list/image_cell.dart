@@ -17,6 +17,8 @@ class ImageCell extends ConsumerWidget {
     super.key,
     required this.record,
     required this.imageHeight,
+    this.previewRecords = const [],
+    this.previewInitialIndex,
     required this.onReusePrompt,
     required this.onReuseEdit,
     required this.onRegenerate,
@@ -33,6 +35,8 @@ class ImageCell extends ConsumerWidget {
 
   final ImageRecord record;
   final double imageHeight;
+  final List<ImageRecord> previewRecords;
+  final int? previewInitialIndex;
   final VoidCallback onReusePrompt;
   final VoidCallback onReuseEdit;
   final VoidCallback onRegenerate;
@@ -269,8 +273,19 @@ class ImageCell extends ConsumerWidget {
   }
 
   void _openPreview(BuildContext context) {
+    final records = previewRecords.isEmpty ? [record] : previewRecords;
+    final resolvedInitialIndex =
+        previewInitialIndex ??
+        records.indexWhere((item) => item.id == record.id);
+
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ImagePreviewPage(record: record)),
+      MaterialPageRoute<void>(
+        builder: (_) => ImagePreviewPage(
+          record: record,
+          records: records,
+          initialIndex: resolvedInitialIndex < 0 ? 0 : resolvedInitialIndex,
+        ),
+      ),
     );
   }
 

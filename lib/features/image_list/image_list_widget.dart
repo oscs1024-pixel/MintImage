@@ -115,6 +115,9 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
       onRefresh: () => ref.read(imageListProvider.notifier).reload(),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final previewRecords = records
+              .where(_canPreviewRecord)
+              .toList(growable: false);
           final metrics = _GridMetrics.fromContext(
             context,
             constraints.maxWidth,
@@ -140,6 +143,10 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
               return ImageCell(
                 record: record,
                 imageHeight: metrics.imageHeight,
+                previewRecords: previewRecords,
+                previewInitialIndex: previewRecords.indexWhere(
+                  (item) => item.id == record.id,
+                ),
                 onReusePrompt: () => widget.onReusePrompt(record),
                 onReuseEdit: () => widget.onReuseEdit(record),
                 onRegenerate: () => widget.onRegenerateRecord(record),
@@ -192,6 +199,12 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
           return true;
         })
         .toList(growable: false);
+  }
+
+  bool _canPreviewRecord(ImageRecord record) {
+    return record.resultImagePath != null ||
+        record.resultImageUrl != null ||
+        record.sourceAttachmentPaths.isNotEmpty;
   }
 
   void _selectAtPosition(
