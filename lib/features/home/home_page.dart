@@ -241,6 +241,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             onCancelRecord: _cancelRecord,
                             onDeleteRecord: _deleteRecord,
                             onToggleFavorite: _toggleRecordFavorite,
+                            onPreviewNavigation: _handlePreviewNavigation,
                             currentAttachmentCount: _attachmentCount,
                             onAppendRecordToAttachments:
                                 _appendRecordToAttachments,
@@ -334,6 +335,30 @@ class _HomePageState extends ConsumerState<HomePage> {
     });
   }
 
+  Future<void> _handlePreviewNavigation(
+    Future<void> Function() navigate,
+  ) async {
+    _clearHomeInputFocus();
+    await navigate();
+    if (!mounted) {
+      return;
+    }
+    _clearHomeInputFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _clearHomeInputFocus();
+      }
+    });
+  }
+
+  void _clearHomeInputFocus() {
+    _inputBarKey.currentState?.unfocusPrompt();
+    _searchFocusNode.unfocus(disposition: UnfocusDisposition.scope);
+    FocusManager.instance.primaryFocus?.unfocus(
+      disposition: UnfocusDisposition.scope,
+    );
+  }
+
   void _enterSelectionMode() {
     setState(() {
       _selectionMode = true;
@@ -373,6 +398,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _clearFavoriteFolderFilter() {
+    _clearHomeInputFocus();
     setState(() {
       _selectionMode = false;
       _selectedRecordIds = const <String>{};
@@ -381,8 +407,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _openFavoriteFolders() async {
+    _clearHomeInputFocus();
     _exitSelectionMode();
     final folderId = await showFavoriteFolderBrowserSheet(context);
+    _clearHomeInputFocus();
     if (!mounted || folderId == null) {
       return;
     }
@@ -436,6 +464,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       return;
     }
 
+    _clearHomeInputFocus();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -455,6 +484,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         );
       },
     );
+    _clearHomeInputFocus();
 
     if (confirmed != true) {
       return;
@@ -474,9 +504,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _openSettings() async {
+    _clearHomeInputFocus();
     await Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
+    _clearHomeInputFocus();
   }
 
   Future<void> _handleUpdateTap(UpdateCheckState updateState) async {
@@ -485,6 +517,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     if (Platform.isIOS) {
+      _clearHomeInputFocus();
       await showDialog<void>(
         context: context,
         builder: (context) {
@@ -502,6 +535,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           );
         },
       );
+      _clearHomeInputFocus();
       return;
     }
 

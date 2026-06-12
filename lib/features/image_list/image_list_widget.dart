@@ -16,6 +16,7 @@ class ImageListWidget extends ConsumerStatefulWidget {
     required this.onCancelRecord,
     required this.onDeleteRecord,
     required this.onToggleFavorite,
+    required this.onPreviewNavigation,
     required this.currentAttachmentCount,
     required this.onAppendRecordToAttachments,
     required this.selectionMode,
@@ -34,6 +35,8 @@ class ImageListWidget extends ConsumerStatefulWidget {
   final ValueChanged<String> onCancelRecord;
   final ValueChanged<ImageRecord> onDeleteRecord;
   final ValueChanged<ImageRecord> onToggleFavorite;
+  final Future<void> Function(Future<void> Function() navigate)
+  onPreviewNavigation;
   final int currentAttachmentCount;
   final ValueChanged<ImageRecord> onAppendRecordToAttachments;
   final bool selectionMode;
@@ -154,6 +157,7 @@ class _ImageListWidgetState extends ConsumerState<ImageListWidget> {
                 onCancel: () => widget.onCancelRecord(record.id),
                 onDelete: () => widget.onDeleteRecord(record),
                 onToggleFavorite: () => widget.onToggleFavorite(record),
+                onPreviewNavigation: widget.onPreviewNavigation,
                 currentAttachmentCount: widget.currentAttachmentCount,
                 onAppendCurrentImageToAttachments: () =>
                     widget.onAppendRecordToAttachments(record),

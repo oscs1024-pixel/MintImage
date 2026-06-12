@@ -30,7 +30,11 @@ class QuantitySelector extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.layers_rounded, size: 13, color: AppThemeTokens.primaryStrong),
+            Icon(
+              Icons.layers_rounded,
+              size: 13,
+              color: AppThemeTokens.primaryStrong,
+            ),
             const SizedBox(width: 4),
             Text(
               '$count',
@@ -46,6 +50,9 @@ class QuantitySelector extends StatelessWidget {
   }
 
   Future<void> _showQuantityModal(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus(
+      disposition: UnfocusDisposition.scope,
+    );
     final ctrl = TextEditingController(text: count.toString());
     final result = await showDialog<int>(
       context: context,
@@ -53,7 +60,11 @@ class QuantitySelector extends StatelessWidget {
     );
     ctrl.dispose();
     if (result != null) onSelected(result);
-    if (context.mounted) FocusScope.of(context).unfocus();
+    if (context.mounted) {
+      FocusManager.instance.primaryFocus?.unfocus(
+        disposition: UnfocusDisposition.scope,
+      );
+    }
   }
 }
 
@@ -147,7 +158,9 @@ class _QuantityDialogState extends State<_QuantityDialog> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
                   color: active
-                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.1)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(

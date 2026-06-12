@@ -19,6 +19,9 @@ class SizeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        FocusManager.instance.primaryFocus?.unfocus(
+          disposition: UnfocusDisposition.scope,
+        );
         final result = await showSizePickerModal(
           context,
           currentWidth: currentWidth,
@@ -27,7 +30,11 @@ class SizeSelector extends StatelessWidget {
         if (result != null) {
           onSizeSelected(result.$1, result.$2);
         }
-        if (context.mounted) FocusScope.of(context).unfocus();
+        if (context.mounted) {
+          FocusManager.instance.primaryFocus?.unfocus(
+            disposition: UnfocusDisposition.scope,
+          );
+        }
       },
       child: Container(
         constraints: const BoxConstraints(minHeight: 28),
@@ -42,7 +49,11 @@ class SizeSelector extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.aspect_ratio_rounded, size: 13, color: AppThemeTokens.primaryStrong),
+            Icon(
+              Icons.aspect_ratio_rounded,
+              size: 13,
+              color: AppThemeTokens.primaryStrong,
+            ),
             const SizedBox(width: 4),
             Text(
               currentWidth == 0 ? '自动' : '$currentWidth×$currentHeight',

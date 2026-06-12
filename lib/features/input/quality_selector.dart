@@ -30,7 +30,11 @@ class QualitySelector extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome_rounded, size: 13, color: AppThemeTokens.primaryStrong),
+            Icon(
+              Icons.auto_awesome_rounded,
+              size: 13,
+              color: AppThemeTokens.primaryStrong,
+            ),
             const SizedBox(width: 4),
             Text(
               selectedQuality.label,
@@ -46,6 +50,9 @@ class QualitySelector extends StatelessWidget {
   }
 
   Future<void> _showSheet(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus(
+      disposition: UnfocusDisposition.scope,
+    );
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -71,6 +78,10 @@ class QualitySelector extends StatelessWidget {
         );
       },
     );
-    if (context.mounted) FocusScope.of(context).unfocus();
+    if (context.mounted) {
+      FocusManager.instance.primaryFocus?.unfocus(
+        disposition: UnfocusDisposition.scope,
+      );
+    }
   }
 }

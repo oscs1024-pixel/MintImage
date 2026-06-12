@@ -50,6 +50,9 @@ class ImageFormatSelector extends StatelessWidget {
   }
 
   Future<void> _showSheet(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus(
+      disposition: UnfocusDisposition.scope,
+    );
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -75,6 +78,10 @@ class ImageFormatSelector extends StatelessWidget {
         );
       },
     );
-    if (context.mounted) FocusScope.of(context).unfocus();
+    if (context.mounted) {
+      FocusManager.instance.primaryFocus?.unfocus(
+        disposition: UnfocusDisposition.scope,
+      );
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'package:mint_image/core/models/image_record.dart';
 import 'package:mint_image/core/models/settings_model.dart';
 import 'package:mint_image/core/providers/app_providers.dart';
 import 'package:mint_image/features/image_list/image_cell.dart';
+import 'package:mint_image/features/image_list/image_preview_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +79,32 @@ void main() {
 
     expect(appended, isTrue);
   });
+
+  testWidgets('opens preview through preview navigation callback', (
+    tester,
+  ) async {
+    var navigatedThroughCallback = false;
+    await _pumpImageCell(
+      tester,
+      _record.copyWith(
+        status: ImageRecordStatus.done,
+        sourceImagePaths: const ['missing-preview-image.png'],
+        errorMessage: null,
+        clearErrorMessage: true,
+      ),
+      onPreviewNavigation: (navigate) async {
+        navigatedThroughCallback = true;
+        await navigate();
+      },
+    );
+
+    final cellTopLeft = tester.getTopLeft(find.byType(ImageCell));
+    await tester.tapAt(cellTopLeft + const Offset(120, 90));
+    await tester.pumpAndSettle();
+
+    expect(navigatedThroughCallback, isTrue);
+    expect(find.byType(ImagePreviewPage), findsOneWidget);
+  });
 }
 
 Future<void> _pumpImageCell(
@@ -85,6 +112,7 @@ Future<void> _pumpImageCell(
   ImageRecord record, {
   VoidCallback? onRegenerate,
   VoidCallback? onAppendCurrentImageToAttachments,
+  Future<void> Function(Future<void> Function() navigate)? onPreviewNavigation,
 }) async {
   SharedPreferences.setMockInitialValues(const {});
   final preferences = await SharedPreferences.getInstance();
@@ -111,6 +139,8 @@ Future<void> _pumpImageCell(
                 onCancel: () {},
                 onDelete: () {},
                 onToggleFavorite: () {},
+                onPreviewNavigation:
+                    onPreviewNavigation ?? (navigate) => navigate(),
                 selectionMode: false,
                 selected: false,
                 onSelectionToggle: () {},

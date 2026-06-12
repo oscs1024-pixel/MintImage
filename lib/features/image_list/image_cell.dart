@@ -26,6 +26,7 @@ class ImageCell extends ConsumerWidget {
     required this.onCancel,
     required this.onDelete,
     required this.onToggleFavorite,
+    required this.onPreviewNavigation,
     required this.selectionMode,
     required this.selected,
     required this.onSelectionToggle,
@@ -44,6 +45,8 @@ class ImageCell extends ConsumerWidget {
   final VoidCallback onCancel;
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
+  final Future<void> Function(Future<void> Function() navigate)
+  onPreviewNavigation;
   final bool selectionMode;
   final bool selected;
   final VoidCallback onSelectionToggle;
@@ -272,24 +275,29 @@ class ImageCell extends ConsumerWidget {
     );
   }
 
-  void _openPreview(BuildContext context) {
+  Future<void> _openPreview(BuildContext context) async {
     final records = previewRecords.isEmpty ? [record] : previewRecords;
     final resolvedInitialIndex =
         previewInitialIndex ??
         records.indexWhere((item) => item.id == record.id);
+    final navigator = Navigator.of(context);
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ImagePreviewPage(
-          record: record,
-          records: records,
-          initialIndex: resolvedInitialIndex < 0 ? 0 : resolvedInitialIndex,
+    await onPreviewNavigation(
+      () => navigator.push(
+        MaterialPageRoute<void>(
+          requestFocus: false,
+          builder: (_) => ImagePreviewPage(
+            record: record,
+            records: records,
+            initialIndex: resolvedInitialIndex < 0 ? 0 : resolvedInitialIndex,
+          ),
         ),
       ),
     );
   }
 
   Future<void> _showActions(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final canEdit = record.status == ImageRecordStatus.done;
     final pageContext = context;
 
@@ -446,6 +454,7 @@ class ImageCell extends ConsumerWidget {
   }
 
   Future<void> _showErrorDetails(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final message = record.errorMessage?.trim();
     final displayMessage = message == null || message.isEmpty
         ? '没有记录到具体失败原因。'
@@ -466,6 +475,7 @@ class ImageCell extends ConsumerWidget {
         );
       },
     );
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   String _formatTime(DateTime time) {

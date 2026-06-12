@@ -60,6 +60,13 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
 
   int get attachmentCount => _attachments.length;
 
+  void unfocusPrompt() {
+    if (!mounted) {
+      return;
+    }
+    _promptFocusNode.unfocus(disposition: UnfocusDisposition.scope);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -605,8 +612,13 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
   }
 
   Future<void> _pickAttachments() async {
+    unfocusPrompt();
     final picked = await ref.read(attachmentPickerServiceProvider).pickImages();
-    if (!mounted || picked.isEmpty) {
+    if (!mounted) {
+      return;
+    }
+    unfocusPrompt();
+    if (picked.isEmpty) {
       return;
     }
 
@@ -705,6 +717,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
       return;
     }
 
+    unfocusPrompt();
     final selectedProfileId = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -799,7 +812,11 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
       },
     );
 
-    if (!mounted || selectedProfileId == null) {
+    if (!mounted) {
+      return;
+    }
+    unfocusPrompt();
+    if (selectedProfileId == null) {
       return;
     }
 
@@ -818,6 +835,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     }
 
     final settings = ref.read(settingsProvider);
+    unfocusPrompt();
     final selectedProfileId = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -868,7 +886,11 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
       },
     );
 
-    if (!mounted || selectedProfileId == null) {
+    if (!mounted) {
+      return;
+    }
+    unfocusPrompt();
+    if (selectedProfileId == null) {
       return;
     }
 
@@ -876,11 +898,7 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
         .read(settingsProvider.notifier)
         .setActiveProfile(selectedProfileId);
 
-    if (!mounted) {
-      return;
-    }
-    // 切换模型后不自动弹出输入法
-    FocusScope.of(context).unfocus();
+    unfocusPrompt();
   }
 
   Future<void> _handlePromptOptimizationTap() async {
@@ -903,11 +921,15 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
     final settings = ref.read(settingsProvider);
     final profile = settings.activePromptOptimizationProfile;
     if (profile == null) {
+      unfocusPrompt();
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => const PromptOptimizationProfileEditPage(),
         ),
       );
+      if (mounted) {
+        unfocusPrompt();
+      }
       return;
     }
 
@@ -930,7 +952,8 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
 
   Future<PromptOptimizationDirection?>
   _showPromptOptimizationDirectionSheet() async {
-    return showModalBottomSheet<PromptOptimizationDirection>(
+    unfocusPrompt();
+    final direction = await showModalBottomSheet<PromptOptimizationDirection>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -1018,6 +1041,10 @@ class BottomInputBarState extends ConsumerState<BottomInputBar> {
         );
       },
     );
+    if (mounted) {
+      unfocusPrompt();
+    }
+    return direction;
   }
 
   Future<void> _optimizePrompt({
